@@ -111,7 +111,7 @@ namespace  Garry.Control4.Jailbreak
 				UpdateDirectorInfo();
 				return true;
 			}
-			catch ( System.Exception e )
+			catch ( System.Exception )
 			{
 				return false;
 			}

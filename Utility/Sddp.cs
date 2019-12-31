@@ -46,7 +46,7 @@ namespace  Garry.Control4.Jailbreak.Utility
 		public void SendMessage( string message )
 		{
 			var bytes = Encoding.UTF8.GetBytes( message );
-			var hostByName = Dns.GetHostByName( Dns.GetHostName() );
+			var hostByName = Dns.GetHostEntry( Dns.GetHostName() );
 			var addressList = hostByName.AddressList;
 			var remoteEP = new IPEndPoint( IPAddress.Parse( "239.255.255.250" ), 1900 );
 			var array = addressList;
