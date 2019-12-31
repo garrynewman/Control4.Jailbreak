@@ -103,7 +103,7 @@ namespace  Garry.Control4.Jailbreak
 
 		private void ViewOnGithub( object sender, EventArgs e )
 		{
-			System.Diagnostics.Process.Start( $"https://www.github.com/something/something" );
+			System.Diagnostics.Process.Start( $"https://github.com/garrynewman/Control4.Jailbreak" );
 		}
 
 		private void FileAndQuit( object sender, EventArgs e )
