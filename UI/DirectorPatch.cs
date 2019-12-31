@@ -66,7 +66,7 @@ namespace  Garry.Control4.Jailbreak
 			// Don't regenerate the certificates. They might be copying the folder
 			// over to another computer or some shit.
 			//
-			if ( System.IO.File.Exists( $"Certs/cacert-garry.pem" ) &&
+			if ( System.IO.File.Exists( $"Certs/{Constants.ComposerCertName}" ) &&
 				System.IO.File.Exists( $"Certs/composer.p12" ) &&
 				System.IO.File.Exists( $"Certs/private.key" ) &&
 				System.IO.File.Exists( $"Certs/public.pem" ) )
@@ -78,17 +78,15 @@ namespace  Garry.Control4.Jailbreak
 				return true;
 			}
 
-			var openssl = @"C:\Program Files (x86)\Control4\Composer\Pro\RemoteAccess\bin\openssl.exe";
-			if ( !System.IO.File.Exists( openssl ) )
+			if ( !System.IO.File.Exists( Constants.OpenSslExe ) )
 			{
-				log.WriteError( $"Couldn't find {openssl} - do you have composer installed?" );
+				log.WriteError( $"Couldn't find {Constants.OpenSslExe} - do you have composer installed?" );
 				return false;
 			}
 
-			var config = @"C:\Program Files (x86)\Control4\Composer\Pro\RemoteAccess\config\openssl.cfg";
-			if ( !System.IO.File.Exists( openssl ) )
+			if ( !System.IO.File.Exists( Constants.OpenSslConfig ) )
 			{
-				log.WriteError( $"Couldn't find {config} - do you have composer installed?" );
+				log.WriteError( $"Couldn't find {Constants.OpenSslConfig} - do you have composer installed?" );
 				return false;
 			}
 
@@ -102,11 +100,11 @@ namespace  Garry.Control4.Jailbreak
 			// generate a self signed private and public key
 			//
 			log.WriteNormal( "\nGenerating private + public keys\n" );
-			var exitCode = RunProcessPrintOutput( log, openssl, $"req -new -x509 -sha256 -nodes -days 3650 -newkey rsa:1024 -keyout \"Certs/private.key\" -subj \"/C=US/ST=Utah/L=Draper/O=Control4/OU=Controller Certificates/CN=Composer_GarryComposerMod/\" -out \"Certs/public.pem\" -config \"{config}\"" );
+			var exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"req -new -x509 -sha256 -nodes -days {Constants.CertificateExpireDays} -newkey rsa:1024 -keyout \"Certs/private.key\" -subj \"/C=US/ST=Utah/L=Draper/O=Control4/OU=Controller Certificates/CN={Constants.CertificateCN}/\" -out \"Certs/public.pem\" -config \"{Constants.OpenSslConfig}\"" );
 
 			if ( exitCode != 0 )
 			{
-				MessageBox.Show( $"Couldn't find {config} - do you have composer installed?", "Openssl.cfg not found", MessageBoxButtons.OK, MessageBoxIcon.Error );
+				log.WriteError( $"Failed." );
 				return false;
 			}
 
@@ -114,20 +112,20 @@ namespace  Garry.Control4.Jailbreak
 			// Create the composer.p12 (public key) which sits in your composer config folder
 			//
 			log.WriteNormal( "Creating composer.p12\n" );
-			exitCode = RunProcessPrintOutput( log, openssl, $"pkcs12 -export -out \"Certs/composer.p12\" -inkey \"Certs/private.key\" -in \"Certs/public.pem\" -passout pass:R8lvpqtgYiAeyO8j8Pyd" );
+			exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"pkcs12 -export -out \"Certs/composer.p12\" -inkey \"Certs/private.key\" -in \"Certs/public.pem\" -passout pass:{Constants.CertPassword}" );
 
 			if ( exitCode != 0 )
 			{
-				MessageBox.Show( $"Couldn't find {config} - do you have composer installed?", "Openssl.cfg not found", MessageBoxButtons.OK, MessageBoxIcon.Error );
+				log.WriteError( $"Failed." );
 				return false;
 			}
 
 			//
-			// Get the text for the composer cacert-garry.pem
+			// Get the text for the composer cacert-*.pem
 			//
-			log.WriteNormal( "Creating cacert-garry.pem\n" );
-			var output = RunProcessGetOutput( openssl, $"x509 -in \"Certs/public.pem\" -text" );
-			System.IO.File.WriteAllText( "Certs/cacert-garry.pem", output );
+			log.WriteNormal( $"Creating {Constants.ComposerCertName}\n" );
+			var output = RunProcessGetOutput( Constants.OpenSslExe, $"x509 -in \"Certs/public.pem\" -text" );
+			System.IO.File.WriteAllText( $"Certs/{Constants.ComposerCertName}", output );
 
 			return true;
 
@@ -137,7 +135,7 @@ namespace  Garry.Control4.Jailbreak
 		{
 			var configFolder = $"{Environment.GetFolderPath( Environment.SpecialFolder.ApplicationData )}\\Control4\\Composer";
 
-			CopyFile( log, $"Certs/cacert-garry.pem", $"{configFolder}\\cacert-garry.pem" );
+			CopyFile( log, $"Certs/{Constants.ComposerCertName}", $"{configFolder}\\{Constants.ComposerCertName}" );
 			CopyFile( log, $"Certs/composer.p12", $"{configFolder}\\composer.p12" );
 
 			return true;
