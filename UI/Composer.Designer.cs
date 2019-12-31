@@ -109,7 +109,7 @@
 			// button3
 			// 
 			this.button3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-			this.button3.Image = global:: Garry.Control4.Jailbreak.Properties.Resources.reddit__2_;
+			this.button3.Image = global:: Garry.Control4.Jailbreak.Properties.Resources.reddit;
 			this.button3.Location = new System.Drawing.Point(181, 127);
 			this.button3.Name = "button3";
 			this.button3.Size = new System.Drawing.Size(93, 37);
@@ -138,7 +138,7 @@
 			this.button2.Anchor = ((System.Windows.Forms.AnchorStyles)((System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right)));
 			this.button2.AutoSize = true;
 			this.button2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
-			this.button2.Image = global:: Garry.Control4.Jailbreak.Properties.Resources.patch__1_;
+			this.button2.Image = global:: Garry.Control4.Jailbreak.Properties.Resources.patch;
 			this.button2.Location = new System.Drawing.Point(250, 289);
 			this.button2.Name = "button2";
 			this.button2.Padding = new System.Windows.Forms.Padding(8);

@@ -123,9 +123,9 @@ namespace Garry.Control4.Jailbreak.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap patch__1_ {
+        internal static System.Drawing.Bitmap patch {
             get {
-                object obj = ResourceManager.GetObject("patch (1)", resourceCulture);
+                object obj = ResourceManager.GetObject("patch", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
@@ -133,9 +133,9 @@ namespace Garry.Control4.Jailbreak.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.
         /// </summary>
-        internal static System.Drawing.Bitmap reddit__2_ {
+        internal static System.Drawing.Bitmap reddit {
             get {
-                object obj = ResourceManager.GetObject("reddit (2)", resourceCulture);
+                object obj = ResourceManager.GetObject("reddit", resourceCulture);
                 return ((System.Drawing.Bitmap)(obj));
             }
         }

@@ -192,7 +192,7 @@
     <None Include="Resources\download.png" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="Resources\patch %281%29.png" />
+    <None Include="Resources\patch.png" />
   </ItemGroup>
   <ItemGroup>
     <None Include="Resources\four.ico" />
