@@ -54,6 +54,8 @@ namespace  Garry.Control4.Jailbreak.Utility
 			{
 				var iPAddress = array[i];
 				var addressBytes = iPAddress.GetAddressBytes();
+				if ( addressBytes.Length > 4 ) continue;
+
 				var optionValue = (int)addressBytes[0] + ((int)addressBytes[1] << 8) + ((int)addressBytes[2] << 16) + ((int)addressBytes[3] << 24);
 
 				SearchSocket.SetSocketOption( SocketOptionLevel.IP, SocketOptionName.MulticastInterface, optionValue );
