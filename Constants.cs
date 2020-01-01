@@ -13,12 +13,12 @@ namespace Garry.Control4.Jailbreak
 		/// <summary>
 		/// The cert for composer needs to be named cacert-*.pem
 		/// </summary>
-		public const string ComposerCertName = "cacert-garry.pem";
+		public const string ComposerCertName = "cacert-jailbreak.pem";
 
 		/// <summary>
 		/// Needs to start with Composer_ and can be anything after
 		/// </summary>
-		public const string CertificateCN = "Composer_GarryComposerMod";
+		public const string CertificateCN = "Composer_GarryJailbreak";
 
 		/// <summary>
 		/// Should always be this unless they change something internally
