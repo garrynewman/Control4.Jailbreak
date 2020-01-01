@@ -40,6 +40,7 @@
 			this.composerSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+			this.rc4diyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
 			this.splitContainer3 = new System.Windows.Forms.SplitContainer();
 			this.StatusTextLeft = new System.Windows.Forms.Label();
 			this.StatusTextRight = new System.Windows.Forms.Label();
@@ -138,7 +139,8 @@
 			// helpToolStripMenuItem
 			// 
 			this.helpToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
-            this.aboutToolStripMenuItem});
+            this.aboutToolStripMenuItem,
+            this.rc4diyToolStripMenuItem});
 			this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
 			this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
 			this.helpToolStripMenuItem.Text = "Help";
@@ -146,9 +148,16 @@
 			// aboutToolStripMenuItem
 			// 
 			this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-			this.aboutToolStripMenuItem.Size = new System.Drawing.Size(159, 22);
+			this.aboutToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
 			this.aboutToolStripMenuItem.Text = "View On GitHub";
 			this.aboutToolStripMenuItem.Click += new System.EventHandler(this.ViewOnGithub);
+			// 
+			// rc4diyToolStripMenuItem
+			// 
+			this.rc4diyToolStripMenuItem.Name = "rc4diyToolStripMenuItem";
+			this.rc4diyToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
+			this.rc4diyToolStripMenuItem.Text = "Visit C4diy on Reddit";
+			this.rc4diyToolStripMenuItem.Click += new System.EventHandler(this.VisitC4Diy);
 			// 
 			// splitContainer3
 			// 
@@ -242,5 +251,6 @@
 		private System.Windows.Forms.ToolStripMenuItem foldersToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem composerFolderToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem composerSettingsToolStripMenuItem;
+		private System.Windows.Forms.ToolStripMenuItem rc4diyToolStripMenuItem;
 	}
 }

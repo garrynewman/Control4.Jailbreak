@@ -112,5 +112,10 @@ namespace  Garry.Control4.Jailbreak
 		{
 			Application.Exit();
 		}
+
+		private void VisitC4Diy( object sender, EventArgs e )
+		{
+			System.Diagnostics.Process.Start( $"https://www.reddit.com/r/C4diy/" );
+		}
 	}
 }
