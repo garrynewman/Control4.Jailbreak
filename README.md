@@ -12,6 +12,8 @@ I thought it would be safer/easier in the long run to write something open sourc
 
 # How
 
+Head over to the [releases page](https://github.com/garrynewman/Control4.Jailbreak/releases) and download the zip (not the source). Unzip and run C4Jailbreak.exe.
+
 ## Connect to your controller
 
 ![Showing the controller connection screen](https://files.facepunch.com/garry/7dfa86b6-e85e-4aca-ba39-acec8b5d7e83.png)
