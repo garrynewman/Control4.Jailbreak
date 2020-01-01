@@ -24,7 +24,7 @@ namespace  Garry.Control4.Jailbreak
 		{
 			InitializeComponent();
 
-			this.Text += $" - v{Constants.Version}";
+			this.Text += $" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
 
 			MainTabControl.TabPages.Clear();
 

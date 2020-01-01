@@ -40,5 +40,10 @@ namespace Garry.Control4.Jailbreak
 		/// Where OpenSSL's Config is located (it's installed with Composer)
 		/// </summary>
 		public const string OpenSslConfig = @"C:\Program Files (x86)\Control4\Composer\Pro\RemoteAccess\config\openssl.cfg";
+
+		/// <summary>
+		/// What version of Director/Composer we're aiming at
+		/// </summary>
+		public const string TargetDirectorVersion = @"3.1.0";
 	}
 }
