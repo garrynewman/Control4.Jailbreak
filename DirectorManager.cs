@@ -26,7 +26,7 @@ namespace  Garry.Control4.Jailbreak
 		{
 			this.address = address;
 
-			SshConnectionInfo = new ConnectionInfo( address.ToString(), "root", new PasswordAuthenticationMethod( "root", "t0talc0ntr0l4!" ) );
+			SshConnectionInfo = new ConnectionInfo( address.ToString(), "jailbreak", new PasswordAuthenticationMethod( "jailbreak", "jailbreak" ) );
 			SshConnectionInfo.RetryAttempts = 1;
 			SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 2 );
 		}
@@ -36,15 +36,20 @@ namespace  Garry.Control4.Jailbreak
 
 		public async Task<bool> TryInitialize()
 		{
-			Soap = new SoapClient( address );
 
-			var getItems = await Soap.Call<Soap.GetItems>( "GetItems", "filter", "1" );
-			var getVersionInfo = await Soap.Call<Soap.GetVersionInfo>( "GetVersionInfo" );
-			var getCommonName = await Soap.Call<Soap.GetCommonName>( "GetCommonName" );
+			//
+			// Since 3.1.1 Soap doesn't work, we probably need a certificate or something
+			//
 
-			SystemName = getItems.SystemItems.All.Single( x => x.Type == 1 ).Name;
-			CommonName = getCommonName.CommonName;
-			Version = getVersionInfo.Versions.All.Single( x => x.Name == "Director" ).VersionNumber;
+			//Soap = new SoapClient( address );
+
+			//var getItems = await Soap.Call<Soap.GetItems>( "GetItems", "filter", "1" );
+			//var getVersionInfo = await Soap.Call<Soap.GetVersionInfo>( "GetVersionInfo" );
+			//var getCommonName = await Soap.Call<Soap.GetCommonName>( "GetCommonName" );
+
+			//SystemName = getItems.SystemItems.All.FirstOrDefault( x => x.Type == 1 ).Name;
+			//CommonName = getCommonName.CommonName;
+			//Version = getVersionInfo.Versions.All.Single( x => x.Name == "Director" ).VersionNumber;
 
 			Trace.WriteLine( $"Version is {Version}" );
 

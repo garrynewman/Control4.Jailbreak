@@ -28,229 +28,199 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
-			System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainWindow));
-			this.MainTabControl = new System.Windows.Forms.TabControl();
-			this.tabController = new System.Windows.Forms.TabPage();
-			this.tabPage2 = new System.Windows.Forms.TabPage();
-			this.menuStrip1 = new System.Windows.Forms.MenuStrip();
-			this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.quitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.foldersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.composerFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.composerSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.rc4diyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
-			this.splitContainer3 = new System.Windows.Forms.SplitContainer();
-			this.StatusTextLeft = new System.Windows.Forms.Label();
-			this.StatusTextRight = new System.Windows.Forms.Label();
-			this.MainTabControl.SuspendLayout();
-			this.menuStrip1.SuspendLayout();
-			((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).BeginInit();
-			this.splitContainer3.Panel1.SuspendLayout();
-			this.splitContainer3.Panel2.SuspendLayout();
-			this.splitContainer3.SuspendLayout();
-			this.SuspendLayout();
-			// 
-			// MainTabControl
-			// 
-			this.MainTabControl.Controls.Add(this.tabController);
-			this.MainTabControl.Controls.Add(this.tabPage2);
-			this.MainTabControl.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.MainTabControl.HotTrack = true;
-			this.MainTabControl.Location = new System.Drawing.Point(5, 5);
-			this.MainTabControl.Margin = new System.Windows.Forms.Padding(6);
-			this.MainTabControl.Name = "MainTabControl";
-			this.MainTabControl.SelectedIndex = 0;
-			this.MainTabControl.Size = new System.Drawing.Size(474, 406);
-			this.MainTabControl.TabIndex = 0;
-			// 
-			// tabController
-			// 
-			this.tabController.Location = new System.Drawing.Point(4, 22);
-			this.tabController.Margin = new System.Windows.Forms.Padding(6);
-			this.tabController.Name = "tabController";
-			this.tabController.Padding = new System.Windows.Forms.Padding(6);
-			this.tabController.Size = new System.Drawing.Size(466, 380);
-			this.tabController.TabIndex = 0;
-			this.tabController.Text = "Controller";
-			this.tabController.UseVisualStyleBackColor = true;
-			// 
-			// tabPage2
-			// 
-			this.tabPage2.Location = new System.Drawing.Point(4, 22);
-			this.tabPage2.Name = "tabPage2";
-			this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-			this.tabPage2.Size = new System.Drawing.Size(466, 377);
-			this.tabPage2.TabIndex = 1;
-			this.tabPage2.Text = "Jailbreak";
-			this.tabPage2.UseVisualStyleBackColor = true;
-			// 
-			// menuStrip1
-			// 
-			this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(MainWindow));
+            this.menuStrip1 = new System.Windows.Forms.MenuStrip();
+            this.fileToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.quitToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.foldersToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.composerFolderToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.composerSettingsToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.helpToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.rc4diyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
+            this.splitContainer3 = new System.Windows.Forms.SplitContainer();
+            this.StatusTextLeft = new System.Windows.Forms.Label();
+            this.StatusTextRight = new System.Windows.Forms.Label();
+            this.FlowPanel = new System.Windows.Forms.FlowLayoutPanel();
+            this.menuStrip1.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).BeginInit();
+            this.splitContainer3.Panel2.SuspendLayout();
+            this.splitContainer3.SuspendLayout();
+            this.SuspendLayout();
+            // 
+            // menuStrip1
+            // 
+            this.menuStrip1.Items.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.fileToolStripMenuItem,
             this.foldersToolStripMenuItem,
             this.helpToolStripMenuItem});
-			this.menuStrip1.Location = new System.Drawing.Point(0, 0);
-			this.menuStrip1.Name = "menuStrip1";
-			this.menuStrip1.Size = new System.Drawing.Size(484, 24);
-			this.menuStrip1.TabIndex = 1;
-			this.menuStrip1.Text = "menuStrip1";
-			// 
-			// fileToolStripMenuItem
-			// 
-			this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.menuStrip1.Location = new System.Drawing.Point(0, 0);
+            this.menuStrip1.Name = "menuStrip1";
+            this.menuStrip1.Size = new System.Drawing.Size(534, 24);
+            this.menuStrip1.TabIndex = 1;
+            this.menuStrip1.Text = "menuStrip1";
+            // 
+            // fileToolStripMenuItem
+            // 
+            this.fileToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.quitToolStripMenuItem});
-			this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
-			this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
-			this.fileToolStripMenuItem.Text = "File";
-			// 
-			// quitToolStripMenuItem
-			// 
-			this.quitToolStripMenuItem.Name = "quitToolStripMenuItem";
-			this.quitToolStripMenuItem.Size = new System.Drawing.Size(97, 22);
-			this.quitToolStripMenuItem.Text = "Quit";
-			this.quitToolStripMenuItem.Click += new System.EventHandler(this.FileAndQuit);
-			// 
-			// foldersToolStripMenuItem
-			// 
-			this.foldersToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.fileToolStripMenuItem.Name = "fileToolStripMenuItem";
+            this.fileToolStripMenuItem.Size = new System.Drawing.Size(37, 20);
+            this.fileToolStripMenuItem.Text = "File";
+            // 
+            // quitToolStripMenuItem
+            // 
+            this.quitToolStripMenuItem.Name = "quitToolStripMenuItem";
+            this.quitToolStripMenuItem.Size = new System.Drawing.Size(97, 22);
+            this.quitToolStripMenuItem.Text = "Quit";
+            this.quitToolStripMenuItem.Click += new System.EventHandler(this.FileAndQuit);
+            // 
+            // foldersToolStripMenuItem
+            // 
+            this.foldersToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.composerFolderToolStripMenuItem,
             this.composerSettingsToolStripMenuItem});
-			this.foldersToolStripMenuItem.Name = "foldersToolStripMenuItem";
-			this.foldersToolStripMenuItem.Size = new System.Drawing.Size(57, 20);
-			this.foldersToolStripMenuItem.Text = "Folders";
-			// 
-			// composerFolderToolStripMenuItem
-			// 
-			this.composerFolderToolStripMenuItem.Name = "composerFolderToolStripMenuItem";
-			this.composerFolderToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
-			this.composerFolderToolStripMenuItem.Text = "Composer Folder";
-			this.composerFolderToolStripMenuItem.Click += new System.EventHandler(this.OpenComposerFolder);
-			// 
-			// composerSettingsToolStripMenuItem
-			// 
-			this.composerSettingsToolStripMenuItem.Name = "composerSettingsToolStripMenuItem";
-			this.composerSettingsToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
-			this.composerSettingsToolStripMenuItem.Text = "Composer Settings";
-			this.composerSettingsToolStripMenuItem.Click += new System.EventHandler(this.OpenComposerSettingsFolder);
-			// 
-			// helpToolStripMenuItem
-			// 
-			this.helpToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
+            this.foldersToolStripMenuItem.Name = "foldersToolStripMenuItem";
+            this.foldersToolStripMenuItem.Size = new System.Drawing.Size(57, 20);
+            this.foldersToolStripMenuItem.Text = "Folders";
+            // 
+            // composerFolderToolStripMenuItem
+            // 
+            this.composerFolderToolStripMenuItem.Name = "composerFolderToolStripMenuItem";
+            this.composerFolderToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            this.composerFolderToolStripMenuItem.Text = "Composer Folder";
+            this.composerFolderToolStripMenuItem.Click += new System.EventHandler(this.OpenComposerFolder);
+            // 
+            // composerSettingsToolStripMenuItem
+            // 
+            this.composerSettingsToolStripMenuItem.Name = "composerSettingsToolStripMenuItem";
+            this.composerSettingsToolStripMenuItem.Size = new System.Drawing.Size(174, 22);
+            this.composerSettingsToolStripMenuItem.Text = "Composer Settings";
+            this.composerSettingsToolStripMenuItem.Click += new System.EventHandler(this.OpenComposerSettingsFolder);
+            // 
+            // helpToolStripMenuItem
+            // 
+            this.helpToolStripMenuItem.DropDownItems.AddRange(new System.Windows.Forms.ToolStripItem[] {
             this.aboutToolStripMenuItem,
             this.rc4diyToolStripMenuItem});
-			this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
-			this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
-			this.helpToolStripMenuItem.Text = "Help";
-			// 
-			// aboutToolStripMenuItem
-			// 
-			this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
-			this.aboutToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
-			this.aboutToolStripMenuItem.Text = "View On GitHub";
-			this.aboutToolStripMenuItem.Click += new System.EventHandler(this.ViewOnGithub);
-			// 
-			// rc4diyToolStripMenuItem
-			// 
-			this.rc4diyToolStripMenuItem.Name = "rc4diyToolStripMenuItem";
-			this.rc4diyToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
-			this.rc4diyToolStripMenuItem.Text = "Visit C4diy on Reddit";
-			this.rc4diyToolStripMenuItem.Click += new System.EventHandler(this.VisitC4Diy);
-			// 
-			// splitContainer3
-			// 
-			this.splitContainer3.Dock = System.Windows.Forms.DockStyle.Fill;
-			this.splitContainer3.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
-			this.splitContainer3.IsSplitterFixed = true;
-			this.splitContainer3.Location = new System.Drawing.Point(0, 24);
-			this.splitContainer3.Name = "splitContainer3";
-			this.splitContainer3.Orientation = System.Windows.Forms.Orientation.Horizontal;
-			// 
-			// splitContainer3.Panel1
-			// 
-			this.splitContainer3.Panel1.Controls.Add(this.MainTabControl);
-			this.splitContainer3.Panel1.Margin = new System.Windows.Forms.Padding(5);
-			this.splitContainer3.Panel1.Padding = new System.Windows.Forms.Padding(5, 5, 5, 0);
-			// 
-			// splitContainer3.Panel2
-			// 
-			this.splitContainer3.Panel2.Controls.Add(this.StatusTextLeft);
-			this.splitContainer3.Panel2.Controls.Add(this.StatusTextRight);
-			this.splitContainer3.Panel2.Padding = new System.Windows.Forms.Padding(4);
-			this.splitContainer3.Panel2MinSize = 20;
-			this.splitContainer3.Size = new System.Drawing.Size(484, 437);
-			this.splitContainer3.SplitterDistance = 411;
-			this.splitContainer3.SplitterWidth = 1;
-			this.splitContainer3.TabIndex = 2;
-			// 
-			// StatusTextLeft
-			// 
-			this.StatusTextLeft.AutoSize = true;
-			this.StatusTextLeft.BackColor = System.Drawing.Color.Transparent;
-			this.StatusTextLeft.Dock = System.Windows.Forms.DockStyle.Left;
-			this.StatusTextLeft.Location = new System.Drawing.Point(4, 4);
-			this.StatusTextLeft.Name = "StatusTextLeft";
-			this.StatusTextLeft.Size = new System.Drawing.Size(0, 13);
-			this.StatusTextLeft.TabIndex = 0;
-			this.StatusTextLeft.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-			// 
-			// StatusTextRight
-			// 
-			this.StatusTextRight.AutoSize = true;
-			this.StatusTextRight.BackColor = System.Drawing.Color.Transparent;
-			this.StatusTextRight.Dock = System.Windows.Forms.DockStyle.Right;
-			this.StatusTextRight.Location = new System.Drawing.Point(480, 4);
-			this.StatusTextRight.Name = "StatusTextRight";
-			this.StatusTextRight.Size = new System.Drawing.Size(0, 13);
-			this.StatusTextRight.TabIndex = 1;
-			this.StatusTextRight.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
-			// 
-			// MainWindow
-			// 
-			this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
-			this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-			this.ClientSize = new System.Drawing.Size(484, 461);
-			this.Controls.Add(this.splitContainer3);
-			this.Controls.Add(this.menuStrip1);
-			this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
-			this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
-			this.MainMenuStrip = this.menuStrip1;
-			this.MaximumSize = new System.Drawing.Size(500, 500);
-			this.MinimumSize = new System.Drawing.Size(500, 500);
-			this.Name = "MainWindow";
-			this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
-			this.Text = "Garry\'s Control4 Jailbreak";
-			this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
-			this.MainTabControl.ResumeLayout(false);
-			this.menuStrip1.ResumeLayout(false);
-			this.menuStrip1.PerformLayout();
-			this.splitContainer3.Panel1.ResumeLayout(false);
-			this.splitContainer3.Panel2.ResumeLayout(false);
-			this.splitContainer3.Panel2.PerformLayout();
-			((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).EndInit();
-			this.splitContainer3.ResumeLayout(false);
-			this.ResumeLayout(false);
-			this.PerformLayout();
+            this.helpToolStripMenuItem.Name = "helpToolStripMenuItem";
+            this.helpToolStripMenuItem.Size = new System.Drawing.Size(44, 20);
+            this.helpToolStripMenuItem.Text = "Help";
+            // 
+            // aboutToolStripMenuItem
+            // 
+            this.aboutToolStripMenuItem.Name = "aboutToolStripMenuItem";
+            this.aboutToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
+            this.aboutToolStripMenuItem.Text = "View On GitHub";
+            this.aboutToolStripMenuItem.Click += new System.EventHandler(this.ViewOnGithub);
+            // 
+            // rc4diyToolStripMenuItem
+            // 
+            this.rc4diyToolStripMenuItem.Name = "rc4diyToolStripMenuItem";
+            this.rc4diyToolStripMenuItem.Size = new System.Drawing.Size(183, 22);
+            this.rc4diyToolStripMenuItem.Text = "Visit C4diy on Reddit";
+            this.rc4diyToolStripMenuItem.Click += new System.EventHandler(this.VisitC4Diy);
+            // 
+            // splitContainer3
+            // 
+            this.splitContainer3.Dock = System.Windows.Forms.DockStyle.Fill;
+            this.splitContainer3.FixedPanel = System.Windows.Forms.FixedPanel.Panel2;
+            this.splitContainer3.IsSplitterFixed = true;
+            this.splitContainer3.Location = new System.Drawing.Point(0, 24);
+            this.splitContainer3.Name = "splitContainer3";
+            this.splitContainer3.Orientation = System.Windows.Forms.Orientation.Horizontal;
+            // 
+            // splitContainer3.Panel1
+            // 
+            this.splitContainer3.Panel1.Margin = new System.Windows.Forms.Padding(5);
+            this.splitContainer3.Panel1.Padding = new System.Windows.Forms.Padding(5, 5, 5, 0);
+            // 
+            // splitContainer3.Panel2
+            // 
+            this.splitContainer3.Panel2.Controls.Add(this.StatusTextLeft);
+            this.splitContainer3.Panel2.Controls.Add(this.StatusTextRight);
+            this.splitContainer3.Panel2.Padding = new System.Windows.Forms.Padding(4);
+            this.splitContainer3.Panel2MinSize = 20;
+            this.splitContainer3.Size = new System.Drawing.Size(534, 537);
+            this.splitContainer3.SplitterDistance = 511;
+            this.splitContainer3.SplitterWidth = 1;
+            this.splitContainer3.TabIndex = 2;
+            // 
+            // StatusTextLeft
+            // 
+            this.StatusTextLeft.AutoSize = true;
+            this.StatusTextLeft.BackColor = System.Drawing.Color.Transparent;
+            this.StatusTextLeft.Dock = System.Windows.Forms.DockStyle.Left;
+            this.StatusTextLeft.Location = new System.Drawing.Point(4, 4);
+            this.StatusTextLeft.Name = "StatusTextLeft";
+            this.StatusTextLeft.Size = new System.Drawing.Size(0, 13);
+            this.StatusTextLeft.TabIndex = 0;
+            this.StatusTextLeft.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
+            // 
+            // StatusTextRight
+            // 
+            this.StatusTextRight.AutoSize = true;
+            this.StatusTextRight.BackColor = System.Drawing.Color.Transparent;
+            this.StatusTextRight.Dock = System.Windows.Forms.DockStyle.Right;
+            this.StatusTextRight.Location = new System.Drawing.Point(530, 4);
+            this.StatusTextRight.Name = "StatusTextRight";
+            this.StatusTextRight.Size = new System.Drawing.Size(0, 13);
+            this.StatusTextRight.TabIndex = 1;
+            this.StatusTextRight.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            // 
+            // FlowPanel
+            // 
+            this.FlowPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.FlowPanel.AutoScroll = true;
+            this.FlowPanel.BackColor = System.Drawing.SystemColors.Window;
+            this.FlowPanel.Location = new System.Drawing.Point(0, 24);
+            this.FlowPanel.Name = "FlowPanel";
+            this.FlowPanel.Size = new System.Drawing.Size(534, 513);
+            this.FlowPanel.TabIndex = 3;
+            // 
+            // MainWindow
+            // 
+            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.ClientSize = new System.Drawing.Size(534, 561);
+            this.Controls.Add(this.FlowPanel);
+            this.Controls.Add(this.splitContainer3);
+            this.Controls.Add(this.menuStrip1);
+            this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
+            this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
+            this.MainMenuStrip = this.menuStrip1;
+            this.MaximumSize = new System.Drawing.Size(550, 600);
+            this.MinimumSize = new System.Drawing.Size(550, 600);
+            this.Name = "MainWindow";
+            this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
+            this.Text = "Garry\'s Control4 Jailbreak";
+            this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
+            this.menuStrip1.ResumeLayout(false);
+            this.menuStrip1.PerformLayout();
+            this.splitContainer3.Panel2.ResumeLayout(false);
+            this.splitContainer3.Panel2.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).EndInit();
+            this.splitContainer3.ResumeLayout(false);
+            this.ResumeLayout(false);
+            this.PerformLayout();
 
 		}
 
 		#endregion
-		private System.Windows.Forms.TabControl MainTabControl;
-		private System.Windows.Forms.TabPage tabController;
 		private System.Windows.Forms.MenuStrip menuStrip1;
 		private System.Windows.Forms.SplitContainer splitContainer3;
 		private System.Windows.Forms.ToolStripMenuItem fileToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem quitToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem helpToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem aboutToolStripMenuItem;
-		private System.Windows.Forms.TabPage tabPage2;
 		private System.Windows.Forms.Label StatusTextLeft;
 		private System.Windows.Forms.Label StatusTextRight;
 		private System.Windows.Forms.ToolStripMenuItem foldersToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem composerFolderToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem composerSettingsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem rc4diyToolStripMenuItem;
-	}
+        private System.Windows.Forms.FlowLayoutPanel FlowPanel;
+    }
 }

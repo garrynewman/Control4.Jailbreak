@@ -11,6 +11,9 @@ using System.Diagnostics;
 
 namespace  Garry.Control4.Jailbreak
 {
+	/// <summary>
+	/// This isn't really used now
+	/// </summary>
 	public partial class Director : UserControl
 	{
 		MainWindow MainWindow;
@@ -94,6 +97,9 @@ namespace  Garry.Control4.Jailbreak
 		{
 			try
 			{
+
+				MainWindow.DirectorPatch.Address.Text = connection.EndPoint.Address.ToString();
+
 				MainWindow.SetStatusRight( $"Connecting to {connection.EndPoint.Address}.." );
 
 				var director = new DirectorManager( connection.EndPoint.Address );
@@ -127,9 +133,7 @@ namespace  Garry.Control4.Jailbreak
 
 		private void UpdateDirectorInfo()
 		{
-			MainWindow.Backup.Enabled = true;
 			MainWindow.DirectorPatch.Enabled = true;
-			MainWindow.Restore.Enabled = true;
 
 			directorInfo.Text = $"System Name: {MainWindow.ConnectedDirector.SystemName}\n";
 			directorInfo.Text += $"Common Name: {MainWindow.ConnectedDirector.CommonName}\n";

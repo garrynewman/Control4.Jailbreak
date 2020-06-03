@@ -47,6 +47,12 @@ namespace  Garry.Control4.Jailbreak
 			Write( v );
 		}
 
+		internal void WriteError( System.Exception v )
+		{
+			WriteError( $"\n{v.Message}\n" );
+			WriteNormal( $"{v.StackTrace}\n" );
+		}
+
 		internal void WriteError( string v )
 		{
 			textBox.SelectionColor = Color.Red;

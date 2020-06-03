@@ -10,6 +10,8 @@ using System.Windows.Forms;
 using System.IO;
 using Mono.Cecil;
 using System.Diagnostics;
+using Renci.SshNet;
+using System.Linq.Expressions;
 
 namespace  Garry.Control4.Jailbreak
 {
@@ -22,42 +24,6 @@ namespace  Garry.Control4.Jailbreak
 			this.MainWindow = MainWindow;
 
 			InitializeComponent();
-		}
-
-		private void JailbreakDirector( object sender, EventArgs e )
-		{
-			var log = new LogWindow( MainWindow );
-
-			log.WriteNormal( "Generating Certificates\n" );
-			if ( !GenerateCertificates( log ) )
-			{
-				return;
-			}
-			log.WriteSuccess( "Certificate Generation Successful" );
-			log.WriteNormal( "\n\n" );
-
-			log.WriteNormal( "Copying To Composer\n" );
-			if ( !PatchComposer( log ) )
-			{
-				return;
-			}
-			log.WriteNormal( "\n\n" );
-
-			log.WriteNormal( "Copying To Director\n" );
-			if ( !PatchDirector( log ) )
-			{
-				return;
-			}
-			log.WriteNormal( "\n\n" );
-
-			log.WriteNormal( "Restarting Director\n" );
-			if ( !RestartDirector( log ) )
-			{
-				return;
-			}
-			log.WriteNormal( "\n\n" );
-
-			log.WriteSuccess( "100% All Done!" );
 		}
 
 		bool GenerateCertificates( LogWindow log )
@@ -143,10 +109,30 @@ namespace  Garry.Control4.Jailbreak
 
 		bool PatchDirector( LogWindow log )
 		{
-			using ( var ssh = MainWindow.ConnectedDirector.ScpClient )
+			if ( MainWindow.ConnectedDirector  == null )
+            {
+				log.WriteNormal( $"Skipping director patch because we're not connected" );
+				return false;
+			}
+
+			var SshConnectionInfo = new ConnectionInfo( Address.Text.ToString(), Username.Text, new PasswordAuthenticationMethod( Username.Text, Password.Text ) );
+			SshConnectionInfo.RetryAttempts = 1;
+			SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 2 );
+
+			using ( var ssh = new ScpClient( SshConnectionInfo ) )
 			{
 				log.WriteNormal( $"Connecting to director via SCP.. " );
-				ssh.Connect();
+
+				try
+				{
+					ssh.Connect();
+				}
+				catch ( System.Exception e )
+                {
+					log.WriteError( e );
+					return false;
+                }
+
 				log.WriteSuccess( $" .. connected!\n" );
 
 				// Get the existing certificate
@@ -178,6 +164,7 @@ namespace  Garry.Control4.Jailbreak
 						if ( certificate.Contains( localCert ) )
 						{
 							log.WriteError( $"The certificate on the director already contains our public key!\n" );
+							return false;
 						}
 						else
 						{
@@ -190,7 +177,7 @@ namespace  Garry.Control4.Jailbreak
 						//
 						// This serves no purpose but it doesn't hurt to have it hanging around
 						//
-						log.WriteNormal( $"  Writing to Certs/clientca-prod.pem\n" );
+						log.WriteNormal( $"  Downloading to Certs/clientca-prod.pem\n" );
 						System.IO.File.WriteAllText( "Certs/clientca-prod.pem", certificate );
 
 
@@ -214,16 +201,6 @@ namespace  Garry.Control4.Jailbreak
 					}
 				}
 			}
-
-			return true;
-		}
-
-		bool RestartDirector( LogWindow log )
-		{
-			log.WriteNormal( $"Rebooting..\n" );
-
-			MainWindow.ConnectedDirector.Reboot( log );
-			MainWindow.DirectorDisconnected();
 
 			return true;
 		}
@@ -275,5 +252,71 @@ namespace  Garry.Control4.Jailbreak
 
 			return process.ExitCode;
 		}
-	}
+
+        private void GenerateCertificates( object sender, EventArgs e )
+        {
+			var log = new LogWindow( MainWindow );
+
+			log.WriteNormal( "Generating Certificates\n" );
+			if ( !GenerateCertificates( log ) )
+			{
+				return;
+			}
+			log.WriteSuccess( "Certificate Generation Successful" );
+			log.WriteNormal( "\n\n" );
+		}
+
+        private void ViewCertificates( object sender, EventArgs e )
+        {
+			var folder = System.IO.Path.GetFullPath( "Certs" );
+
+			if ( !System.IO.Directory.Exists( folder ) )
+            {
+				var log = new LogWindow( MainWindow );
+				log.WriteError( $"{folder}doesn't exist - did you generate certificates yet?\n" );
+				return;
+			}
+
+			Process.Start( "explorer.exe", folder );
+		}
+
+		private void CopyComposerCerts( object sender, EventArgs e )
+		{
+			var log = new LogWindow( MainWindow );
+
+			log.WriteNormal( "Copying To Composer\n" );
+			if ( !PatchComposer( log ) )
+			{
+				return;
+			}
+			log.WriteNormal( "\n\n" );
+		}
+
+		private void OpenSystemManager( object sender, EventArgs e )
+        {
+			Process.Start( @"C:\Program Files (x86)\Control4\Composer\Pro\Sysman.exe" );
+		}
+
+        private void PatchDirectorCertificates( object sender, EventArgs e )
+        {
+			var log = new LogWindow( MainWindow );
+
+			try
+			{
+
+				log.WriteNormal( "Copying To Director\n" );
+				if ( !PatchDirector( log ) )
+				{
+					return;
+				}
+				log.WriteNormal( "\n\n" );
+			}
+			catch ( System.Exception ex )
+            {
+				log.WriteError( ex );
+            }
+		}
+
+
+    }
 }

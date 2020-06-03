@@ -96,12 +96,6 @@
       <DesignTime>True</DesignTime>
       <DependentUpon>Resources.resx</DependentUpon>
     </Compile>
-    <Compile Include="UI\Restore.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="UI\Restore.Designer.cs">
-      <DependentUpon>Restore.cs</DependentUpon>
-    </Compile>
     <Compile Include="UI\DirectorPatch.cs">
       <SubType>UserControl</SubType>
     </Compile>
@@ -147,9 +141,6 @@
     <Compile Include="Utility\Sddp.cs" />
     <Compile Include="Utility\Sddp.DeviceResponse.cs" />
     <Compile Include="Utility\SoapClient.cs" />
-    <EmbeddedResource Include="UI\Restore.resx">
-      <DependentUpon>Restore.cs</DependentUpon>
-    </EmbeddedResource>
     <EmbeddedResource Include="UI\DirectorPatch.resx">
       <DependentUpon>DirectorPatch.cs</DependentUpon>
     </EmbeddedResource>

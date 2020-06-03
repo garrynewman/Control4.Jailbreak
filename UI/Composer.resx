@@ -118,8 +118,8 @@
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
   <data name="label3.Text" xml:space="preserve">
-    <value>This technically isn't needed, but it'll stop composer checking registration status with Control4 on startup, so it'll start up a bit faster.
+    <value>We need to stop Composer asking Control4 if you're a dealer.  To do this we change the  ComposerPro_LicensingService_Licensing setting in ComposerPro.exe.config. 
 
-We won't overwrite, the new version is saved as ComposerPro.modded.exe</value>
+You can do this yourself, or we can do it for you by pressing the button. We'll back up the old config file for you.</value>
   </data>
 </root>

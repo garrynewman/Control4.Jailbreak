@@ -44,6 +44,6 @@ namespace Garry.Control4.Jailbreak
 		/// <summary>
 		/// What version of Director/Composer we're aiming at
 		/// </summary>
-		public const string TargetDirectorVersion = @"3.1.0";
+		public const string TargetDirectorVersion = @"3.1.3";
 	}
 }
