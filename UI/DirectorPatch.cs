@@ -108,12 +108,6 @@ namespace  Garry.Control4.Jailbreak
 
 		bool PatchDirector( LogWindow log )
 		{
-			if ( MainWindow.ConnectedDirector  == null )
-            {
-				log.WriteNormal( $"Skipping director patch because we're not connected" );
-				return false;
-			}
-
 			var SshConnectionInfo = new ConnectionInfo( Address.Text.ToString(), Username.Text, new PasswordAuthenticationMethod( Username.Text, Password.Text ) );
 			SshConnectionInfo.RetryAttempts = 1;
 			SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 2 );
