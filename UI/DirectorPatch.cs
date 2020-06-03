@@ -154,6 +154,10 @@ namespace  Garry.Control4.Jailbreak
 						log.WriteNormal( $"  Reading Certs/public.pem\n" );
 						var localCert = System.IO.File.ReadAllText( "Certs/public.pem" );
 
+						var localBackupName = $"Certs/clientca-prod.{DateTime.Now.ToString( "yyyy-dd-M--HH-mm-ss" )}.backup";
+						log.WriteNormal( $"  Downloading to {localBackupName}\n" );
+						System.IO.File.WriteAllText( localBackupName, certificate );
+
 						if ( certificate.Contains( localCert ) )
 						{
 							log.WriteError( $"The certificate on the director already contains our public key!\n" );
@@ -170,8 +174,9 @@ namespace  Garry.Control4.Jailbreak
 						//
 						// This serves no purpose but it doesn't hurt to have it hanging around
 						//
-						log.WriteNormal( $"  Downloading to Certs/clientca-prod.pem\n" );
-						System.IO.File.WriteAllText( "Certs/clientca-prod.pem", certificate );
+						localBackupName += ".new";
+						log.WriteNormal( $"  Downloading to {localBackupName}\n" );
+						System.IO.File.WriteAllText( localBackupName, certificate );
 
 
 						//
