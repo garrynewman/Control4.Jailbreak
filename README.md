@@ -1,6 +1,6 @@
 # What
 
-Jailbreak tool for Control4 3.1.0 - allowing add/rename/move rooms/drivers/devices without being a dealer.
+Jailbreak tool for Control4 3.1.3 - allowing add/rename/move rooms/drivers/devices without being a dealer.
 
 # Why
 
@@ -14,25 +14,9 @@ I thought it would be safer/easier in the long run to write something open sourc
 
 Head over to the [releases page](https://github.com/garrynewman/Control4.Jailbreak/releases) and download the zip (not the source). Unzip and run C4Jailbreak.exe.
 
-## Connect to your controller
+## Follow Each Step
 
-![Showing the controller connection screen](https://files.facepunch.com/garry/7dfa86b6-e85e-4aca-ba39-acec8b5d7e83.png)
-
-## Backup the original certificate
-
-![Showing the backup screen](https://files.facepunch.com/garry/e81f6f28-4f26-4718-a415-c6b74d62bf9d.png)
-
-## Download and Patch Composer Pro
-
-![The composer patch screen](https://files.facepunch.com/garry/67aaf6e2-f1a6-4532-aee6-4a46b7783366.png)
-
-## Patch the Director
-
-![The director patch screen](https://files.facepunch.com/garry/5f43c3e9-86a8-4e7d-b035-cbf9a147c6fd.png)
-
-## Revert to unjailbroken (if you want to)
-
-![Restoration](https://files.facepunch.com/garry/b64b672e-7eb3-4100-9f56-cc397cfe5425.png)
+![Steps](https://files.facepunch.com/garry/addd62d9-6d02-4030-b0ff-788e01fdec67.png)
 
 ## Enjoy
 
