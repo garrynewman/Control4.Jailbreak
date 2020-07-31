@@ -117,14 +117,6 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
-  <data name="label5.Text" xml:space="preserve">
-    <value>It's time for you to do some work. We need a user so we can add the new certificate to the director. So here's what we need you to do.
-
-1. Open System Manager
-2. Right Click on your director in the list (usually starts with EA5)
-3. Go to Terminal
-4. Run these commands (in the terminal you can right click to paste)</value>
-  </data>
   <data name="label8.Text" xml:space="preserve">
     <value>We can copy the new certificates to the composer user settings folder.
 

@@ -11,6 +11,9 @@ using System.IO;
 using System.Diagnostics;
 using Renci.SshNet;
 using System.Linq.Expressions;
+using System.Runtime.InteropServices;
+using System.Net;
+using System.Security.Cryptography;
 
 namespace  Garry.Control4.Jailbreak
 {
@@ -315,6 +318,56 @@ namespace  Garry.Control4.Jailbreak
             }
 		}
 
+        private void OnAddressChanged( object sender, EventArgs e )
+        {
+			_ = WorkoutPassword();
+        }
 
-    }
+		async Task WorkoutPassword()
+        {
+			var address = Address.Text;
+
+			await Task.Run( () =>
+				{
+					var password = GetDirectorRootPassword( address );
+					if ( password != null )
+					{
+						Invoke( (Action)( () =>
+						{
+							if ( Address.Text == address )
+							{
+								Password.Text = password;
+							}
+						}) );
+					}
+				}
+			);
+		}
+
+		[DllImport( "iphlpapi.dll", ExactSpelling = true )]
+		public static extern int SendARP( int DestIP, int SrcIP, [Out] byte[] pMacAddr, ref int PhyAddrLen );
+
+		private static string GetDirectorRootPassword( string address )
+		{
+			var salt = Convert.FromBase64String( "STlqJGd1fTkjI25CWz1hK1YuMURseXA/UnU5QGp6cF4=" );
+
+			try
+			{
+				var hostIPAddress = IPAddress.Parse( address );
+				var ab = new byte[6];
+				int len = ab.Length;
+				var r = SendARP( (int)hostIPAddress.Address, 0, ab, ref len );
+				if ( r != 0 ) return null;
+				var macAddress = BitConverter.ToString( ab, 0, 6 ).Replace( "-", "" );
+
+				var password = Convert.ToBase64String( new Rfc2898DeriveBytes( macAddress, salt, macAddress.Length * 397, HashAlgorithmName.SHA384 ).GetBytes( 33 ) );
+				return password;
+			}
+			catch ( System.Exception )
+            {
+				return null;
+            }
+		}
+
+	}
 }
