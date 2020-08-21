@@ -11,24 +11,17 @@ using System.Diagnostics;
 
 namespace  Garry.Control4.Jailbreak
 {
-	/// <summary>
-	/// This isn't really used now
-	/// </summary>
-	public partial class Director : UserControl
+	public partial class Director
 	{
 		MainWindow MainWindow;
 
 		public Director( MainWindow mainWindow )
 		{
-			InitializeComponent();
-
 			MainWindow = mainWindow;
 		}
 
 		public async Task RefreshList()
-		{
-			refreshLink.Enabled = false;
-
+		{			
 			using ( var sddp = new Utility.Sddp() )
 			{
 				sddp.OnResponse = r =>
@@ -36,60 +29,12 @@ namespace  Garry.Control4.Jailbreak
 					if ( r.St != "c4:director" )
 						return;
 
-					Invoke( (Action)(() =>
-					{
-						controllerList.Items.Add( r );
-
-						if ( controllerList.SelectedIndex < 0 )
-						{
-							controllerList.SelectedIndex = 0;
-							Connect( r );
-						}
-					}));
+					_ = Connect( r );
 				};
 
 				sddp.Search( "c4:director" );
 
 				await Task.Delay( 4000 );
-			}
-
-			refreshLink.Enabled = true;
-		}
-
-		private void SelectedIndexChanged( object sender, EventArgs e )
-		{
-			if ( controllerList.SelectedItem == null )
-			{
-				controllerAddress.Text = "";
-				return;
-			}
-
-			controllerAddress.Text = (controllerList.SelectedItem as Utility.Sddp.DeviceResponse).EndPoint.Address.ToString();
-		}
-
-		private void ControllerAddressTextChanged( object sender, EventArgs e )
-		{
-			selectButton.Enabled = !string.IsNullOrWhiteSpace( controllerAddress.Text );
-		}
-
-		private async void ConnectButtonClicked( object sender, EventArgs e )
-		{
-			if ( controllerList.SelectedItem == null )
-				return;
-
-			Enabled = false;
-			try
-			{
-				await Connect( controllerList.SelectedItem as Utility.Sddp.DeviceResponse );
-			}
-			catch ( System.Exception exception )
-			{
-				Trace.WriteLine( exception );
-				// Back to normal
-			}
-			finally
-			{
-				Enabled = true;
 			}
 		}
 
@@ -97,7 +42,6 @@ namespace  Garry.Control4.Jailbreak
 		{
 			try
 			{
-
 				MainWindow.DirectorPatch.Address.Text = connection.EndPoint.Address.ToString();
 
 				MainWindow.SetStatusRight( $"Connecting to {connection.EndPoint.Address}.." );
@@ -113,8 +57,6 @@ namespace  Garry.Control4.Jailbreak
 
 				MainWindow.ConnectedDirector = director;
 				MainWindow.SetStatusRight( $"Connected to {connection.EndPoint.Address}" );
-
-				UpdateDirectorInfo();
 				return true;
 			}
 			catch ( System.Exception )
@@ -125,25 +67,7 @@ namespace  Garry.Control4.Jailbreak
 
 		internal void DirectorDisconnected()
 		{
-			directorInfo.Text = "";
 			MainWindow.SetStatusRight( $"Not Connected" );
-
-			controllerList.Items.Clear();
-		}
-
-		private void UpdateDirectorInfo()
-		{
-			MainWindow.DirectorPatch.Enabled = true;
-
-			directorInfo.Text = $"System Name: {MainWindow.ConnectedDirector.SystemName}\n";
-			directorInfo.Text += $"Common Name: {MainWindow.ConnectedDirector.CommonName}\n";
-			directorInfo.Text += $"Version: {MainWindow.ConnectedDirector.Version}";
-		}
-
-		private void RefreshLink( object sender, LinkLabelLinkClickedEventArgs e )
-		{
-			controllerList.Items.Clear();
-			RefreshList();
 		}
 	}
 }

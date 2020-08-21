@@ -41,30 +41,30 @@
             // label4
             // 
             this.label4.AutoSize = true;
-            this.label4.Font = new System.Drawing.Font("Microsoft YaHei", 20.25F, System.Drawing.FontStyle.Bold);
+            this.label4.Font = new System.Drawing.Font("Microsoft YaHei", 16F, System.Drawing.FontStyle.Bold);
             this.label4.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label4.Location = new System.Drawing.Point(13, 314);
+            this.label4.Location = new System.Drawing.Point(13, 221);
             this.label4.Name = "label4";
-            this.label4.Size = new System.Drawing.Size(253, 36);
+            this.label4.Size = new System.Drawing.Size(237, 30);
             this.label4.TabIndex = 3;
-            this.label4.Text = "Composer Config";
+            this.label4.Text = "COMPOSER CONFIG";
             // 
             // label2
             // 
             this.label2.AutoSize = true;
-            this.label2.Font = new System.Drawing.Font("Microsoft YaHei", 20.25F, System.Drawing.FontStyle.Bold);
+            this.label2.Font = new System.Drawing.Font("Microsoft YaHei", 16F, System.Drawing.FontStyle.Bold);
             this.label2.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label2.Location = new System.Drawing.Point(13, 52);
+            this.label2.Location = new System.Drawing.Point(13, 28);
             this.label2.Name = "label2";
-            this.label2.Size = new System.Drawing.Size(265, 36);
+            this.label2.Size = new System.Drawing.Size(304, 30);
             this.label2.TabIndex = 7;
-            this.label2.Text = "Get Composer Pro";
+            this.label2.Text = "GETTING COMPOSER PRO";
             // 
             // label5
             // 
             this.label5.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label5.Location = new System.Drawing.Point(19, 97);
+            this.label5.Location = new System.Drawing.Point(19, 71);
             this.label5.Name = "label5";
             this.label5.Size = new System.Drawing.Size(463, 57);
             this.label5.TabIndex = 8;
@@ -76,7 +76,7 @@
             // 
             this.label3.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label3.Location = new System.Drawing.Point(19, 365);
+            this.label3.Location = new System.Drawing.Point(15, 265);
             this.label3.Name = "label3";
             this.label3.Size = new System.Drawing.Size(463, 78);
             this.label3.TabIndex = 4;
@@ -86,7 +86,7 @@
             // 
             this.button3.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.button3.Image = global::Garry.Control4.Jailbreak.Properties.Resources.reddit;
-            this.button3.Location = new System.Drawing.Point(264, 172);
+            this.button3.Location = new System.Drawing.Point(264, 149);
             this.button3.Name = "button3";
             this.button3.Size = new System.Drawing.Size(93, 37);
             this.button3.TabIndex = 10;
@@ -99,7 +99,7 @@
             // button1
             // 
             this.button1.Image = global::Garry.Control4.Jailbreak.Properties.Resources.loupe;
-            this.button1.Location = new System.Drawing.Point(363, 172);
+            this.button1.Location = new System.Drawing.Point(363, 149);
             this.button1.Name = "button1";
             this.button1.Size = new System.Drawing.Size(123, 37);
             this.button1.TabIndex = 9;
@@ -115,7 +115,7 @@
             this.button2.AutoSize = true;
             this.button2.AutoSizeMode = System.Windows.Forms.AutoSizeMode.GrowAndShrink;
             this.button2.Image = global::Garry.Control4.Jailbreak.Properties.Resources.patch;
-            this.button2.Location = new System.Drawing.Point(353, 458);
+            this.button2.Location = new System.Drawing.Point(349, 346);
             this.button2.Name = "button2";
             this.button2.Padding = new System.Windows.Forms.Padding(8);
             this.button2.Size = new System.Drawing.Size(129, 39);
@@ -129,6 +129,7 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
+            this.BackColor = System.Drawing.SystemColors.Window;
             this.Controls.Add(this.button3);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.label5);
@@ -137,7 +138,7 @@
             this.Controls.Add(this.button2);
             this.Controls.Add(this.label4);
             this.Name = "Composer";
-            this.Size = new System.Drawing.Size(500, 547);
+            this.Size = new System.Drawing.Size(500, 480);
             this.ResumeLayout(false);
             this.PerformLayout();
 

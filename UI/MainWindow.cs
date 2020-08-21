@@ -12,10 +12,13 @@ namespace  Garry.Control4.Jailbreak
 {
 	public partial class MainWindow : Form
 	{
-		public Director Director { get; set; }
+		public Certificates Certificates { get; set; }
 		public Composer Composer { get; set; }
+		public Director Director { get; set; }
+		
 		public DirectorPatch DirectorPatch { get; set; }
 		public DirectorManager ConnectedDirector { get; set; }
+		
 
 		public MainWindow()
 		{
@@ -23,16 +26,25 @@ namespace  Garry.Control4.Jailbreak
 
 			this.Text += $" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
 
+			TabControl.TabPages.Clear();
+
 			Director = new Director( this );
-			Director.Parent = FlowPanel;
-			Director.Hide();
+
+			Certificates = new Certificates( this );
+			TabControl.TabPages.Add( "Certificates" );
+			Certificates.Parent = TabControl.TabPages[0];
+			Certificates.Dock = DockStyle.Fill;
 
 			Composer = new Composer( this );
-			Composer.Parent = FlowPanel;
+			TabControl.TabPages.Add( "Composer" );
+			Composer.Parent = TabControl.TabPages[ 1 ];
+			Composer.Dock = DockStyle.Fill;
 
 			DirectorPatch = new DirectorPatch( this );
-			DirectorPatch.Parent = FlowPanel;
-		
+			TabControl.TabPages.Add( "Director" );
+			DirectorPatch.Parent = TabControl.TabPages[ 2 ];
+			DirectorPatch.Dock = DockStyle.Fill;
+
 			CenterToScreen();
 
 			Load += OnLoaded;

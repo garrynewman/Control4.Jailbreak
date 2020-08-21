@@ -39,13 +39,17 @@
             this.aboutToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.rc4diyToolStripMenuItem = new System.Windows.Forms.ToolStripMenuItem();
             this.splitContainer3 = new System.Windows.Forms.SplitContainer();
+            this.TabControl = new System.Windows.Forms.TabControl();
+            this.tabPage1 = new System.Windows.Forms.TabPage();
+            this.tabPage2 = new System.Windows.Forms.TabPage();
             this.StatusTextLeft = new System.Windows.Forms.Label();
             this.StatusTextRight = new System.Windows.Forms.Label();
-            this.FlowPanel = new System.Windows.Forms.FlowLayoutPanel();
             this.menuStrip1.SuspendLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).BeginInit();
+            this.splitContainer3.Panel1.SuspendLayout();
             this.splitContainer3.Panel2.SuspendLayout();
             this.splitContainer3.SuspendLayout();
+            this.TabControl.SuspendLayout();
             this.SuspendLayout();
             // 
             // menuStrip1
@@ -132,6 +136,7 @@
             // 
             // splitContainer3.Panel1
             // 
+            this.splitContainer3.Panel1.Controls.Add(this.TabControl);
             this.splitContainer3.Panel1.Margin = new System.Windows.Forms.Padding(5);
             this.splitContainer3.Panel1.Padding = new System.Windows.Forms.Padding(5, 5, 5, 0);
             // 
@@ -145,6 +150,39 @@
             this.splitContainer3.SplitterDistance = 511;
             this.splitContainer3.SplitterWidth = 1;
             this.splitContainer3.TabIndex = 2;
+            // 
+            // TabControl
+            // 
+            this.TabControl.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
+            | System.Windows.Forms.AnchorStyles.Left) 
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.TabControl.Controls.Add(this.tabPage1);
+            this.TabControl.Controls.Add(this.tabPage2);
+            this.TabControl.Location = new System.Drawing.Point(0, 0);
+            this.TabControl.Name = "TabControl";
+            this.TabControl.SelectedIndex = 0;
+            this.TabControl.Size = new System.Drawing.Size(534, 516);
+            this.TabControl.TabIndex = 0;
+            // 
+            // tabPage1
+            // 
+            this.tabPage1.Location = new System.Drawing.Point(4, 22);
+            this.tabPage1.Name = "tabPage1";
+            this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage1.Size = new System.Drawing.Size(526, 490);
+            this.tabPage1.TabIndex = 0;
+            this.tabPage1.Text = "tabPage1";
+            this.tabPage1.UseVisualStyleBackColor = true;
+            // 
+            // tabPage2
+            // 
+            this.tabPage2.Location = new System.Drawing.Point(4, 22);
+            this.tabPage2.Name = "tabPage2";
+            this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
+            this.tabPage2.Size = new System.Drawing.Size(526, 487);
+            this.tabPage2.TabIndex = 1;
+            this.tabPage2.Text = "tabPage2";
+            this.tabPage2.UseVisualStyleBackColor = true;
             // 
             // StatusTextLeft
             // 
@@ -168,24 +206,11 @@
             this.StatusTextRight.TabIndex = 1;
             this.StatusTextRight.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
             // 
-            // FlowPanel
-            // 
-            this.FlowPanel.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom) 
-            | System.Windows.Forms.AnchorStyles.Left) 
-            | System.Windows.Forms.AnchorStyles.Right)));
-            this.FlowPanel.AutoScroll = true;
-            this.FlowPanel.BackColor = System.Drawing.SystemColors.Window;
-            this.FlowPanel.Location = new System.Drawing.Point(0, 24);
-            this.FlowPanel.Name = "FlowPanel";
-            this.FlowPanel.Size = new System.Drawing.Size(534, 513);
-            this.FlowPanel.TabIndex = 3;
-            // 
             // MainWindow
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.ClientSize = new System.Drawing.Size(534, 561);
-            this.Controls.Add(this.FlowPanel);
             this.Controls.Add(this.splitContainer3);
             this.Controls.Add(this.menuStrip1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
@@ -199,10 +224,12 @@
             this.FormClosed += new System.Windows.Forms.FormClosedEventHandler(this.OnFormClosed);
             this.menuStrip1.ResumeLayout(false);
             this.menuStrip1.PerformLayout();
+            this.splitContainer3.Panel1.ResumeLayout(false);
             this.splitContainer3.Panel2.ResumeLayout(false);
             this.splitContainer3.Panel2.PerformLayout();
             ((System.ComponentModel.ISupportInitialize)(this.splitContainer3)).EndInit();
             this.splitContainer3.ResumeLayout(false);
+            this.TabControl.ResumeLayout(false);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -221,6 +248,8 @@
 		private System.Windows.Forms.ToolStripMenuItem composerFolderToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem composerSettingsToolStripMenuItem;
 		private System.Windows.Forms.ToolStripMenuItem rc4diyToolStripMenuItem;
-        private System.Windows.Forms.FlowLayoutPanel FlowPanel;
+        private System.Windows.Forms.TabControl TabControl;
+        private System.Windows.Forms.TabPage tabPage1;
+        private System.Windows.Forms.TabPage tabPage2;
     }
 }

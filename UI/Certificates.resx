@@ -117,4 +117,14 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="label1.Text" xml:space="preserve">
+    <value>Lets make some certificates.
+
+This will just generate some certificates we need and put them in a Certs folder next to this exe.
+
+You only need to do this once, and we'll reuse the certificates in that folder. If you want to use Composer Pro on multiple computers, just copy this exe with the Certs folder to that computer and use this exe to copy the certificates to Composer there.
+
+We're not doing anything scary yet, but you do need composer pro installed so we can use the openssl.exe it contains.
+</value>
+  </data>
 </root>
