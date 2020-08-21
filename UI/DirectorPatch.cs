@@ -29,15 +29,6 @@ namespace  Garry.Control4.Jailbreak
 		}
 
 
-		bool PatchComposer( LogWindow log )
-		{
-			var configFolder = $"{Environment.GetFolderPath( Environment.SpecialFolder.ApplicationData )}\\Control4\\Composer";
-
-			CopyFile( log, $"Certs/{Constants.ComposerCertName}", $"{configFolder}\\{Constants.ComposerCertName}" );
-			CopyFile( log, $"Certs/composer.p12", $"{configFolder}\\composer.p12" );
-
-			return true;
-		}
 
 		bool PatchDirector( LogWindow log )
 		{
@@ -136,30 +127,8 @@ namespace  Garry.Control4.Jailbreak
 			return true;
 		}
 
-		private void CopyFile( LogWindow log, string a, string b )
-		{
-			log.WriteNormal( $"Copying " );
-			log.WriteHighlight( a );
-			log.WriteNormal( $" to " );
-			log.WriteHighlight( b );
-			log.WriteNormal( $"\n" );
-
-			System.IO.File.Copy( a, b, true );
-		}
 
 
-
-		private void CopyComposerCerts( object sender, EventArgs e )
-		{
-			var log = new LogWindow( MainWindow );
-
-			log.WriteNormal( "Copying To Composer\n" );
-			if ( !PatchComposer( log ) )
-			{
-				return;
-			}
-			log.WriteNormal( "\n\n" );
-		}
 
 		private void OpenSystemManager( object sender, EventArgs e )
         {
@@ -237,5 +206,35 @@ namespace  Garry.Control4.Jailbreak
             }
 		}
 
-	}
+        private void RebootDirector( object sender, EventArgs e )
+        {
+			var log = new LogWindow( MainWindow );
+
+			try
+			{
+				var SshConnectionInfo = new ConnectionInfo( Address.Text.ToString(), Username.Text, new PasswordAuthenticationMethod( Username.Text, Password.Text ) );
+				SshConnectionInfo.RetryAttempts = 1;
+				SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 5 );
+
+				log.WriteTrace( "Connecting To Director..\n" );
+
+				using ( var ssh = new SshClient( SshConnectionInfo ) )
+				{
+					ssh.Connect();
+
+					log.WriteTrace( "Connected!\n" );
+
+					log.WriteTrace( "Running Reboot Command..\n" );
+					var r = ssh.RunCommand( "reboot" );
+					log.WriteTrace( $"Response Was: {r.Result}\n" );
+
+					log.WriteSuccess( $"Your system is rebooting - it can take a while - don't panic, give it 10 minutes!" );
+				}
+			}
+			catch ( System.Exception ex )
+            {
+				log.WriteError( ex );
+			}
+		}
+    }
 }

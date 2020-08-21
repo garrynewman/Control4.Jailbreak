@@ -60,7 +60,7 @@
             this.helpToolStripMenuItem});
             this.menuStrip1.Location = new System.Drawing.Point(0, 0);
             this.menuStrip1.Name = "menuStrip1";
-            this.menuStrip1.Size = new System.Drawing.Size(534, 24);
+            this.menuStrip1.Size = new System.Drawing.Size(504, 24);
             this.menuStrip1.TabIndex = 1;
             this.menuStrip1.Text = "menuStrip1";
             // 
@@ -146,7 +146,7 @@
             this.splitContainer3.Panel2.Controls.Add(this.StatusTextRight);
             this.splitContainer3.Panel2.Padding = new System.Windows.Forms.Padding(4);
             this.splitContainer3.Panel2MinSize = 20;
-            this.splitContainer3.Size = new System.Drawing.Size(534, 537);
+            this.splitContainer3.Size = new System.Drawing.Size(504, 537);
             this.splitContainer3.SplitterDistance = 511;
             this.splitContainer3.SplitterWidth = 1;
             this.splitContainer3.TabIndex = 2;
@@ -161,7 +161,7 @@
             this.TabControl.Location = new System.Drawing.Point(0, 0);
             this.TabControl.Name = "TabControl";
             this.TabControl.SelectedIndex = 0;
-            this.TabControl.Size = new System.Drawing.Size(534, 516);
+            this.TabControl.Size = new System.Drawing.Size(504, 519);
             this.TabControl.TabIndex = 0;
             // 
             // tabPage1
@@ -169,7 +169,7 @@
             this.tabPage1.Location = new System.Drawing.Point(4, 22);
             this.tabPage1.Name = "tabPage1";
             this.tabPage1.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage1.Size = new System.Drawing.Size(526, 490);
+            this.tabPage1.Size = new System.Drawing.Size(496, 493);
             this.tabPage1.TabIndex = 0;
             this.tabPage1.Text = "tabPage1";
             this.tabPage1.UseVisualStyleBackColor = true;
@@ -179,7 +179,7 @@
             this.tabPage2.Location = new System.Drawing.Point(4, 22);
             this.tabPage2.Name = "tabPage2";
             this.tabPage2.Padding = new System.Windows.Forms.Padding(3);
-            this.tabPage2.Size = new System.Drawing.Size(526, 487);
+            this.tabPage2.Size = new System.Drawing.Size(526, 490);
             this.tabPage2.TabIndex = 1;
             this.tabPage2.Text = "tabPage2";
             this.tabPage2.UseVisualStyleBackColor = true;
@@ -200,7 +200,7 @@
             this.StatusTextRight.AutoSize = true;
             this.StatusTextRight.BackColor = System.Drawing.Color.Transparent;
             this.StatusTextRight.Dock = System.Windows.Forms.DockStyle.Right;
-            this.StatusTextRight.Location = new System.Drawing.Point(530, 4);
+            this.StatusTextRight.Location = new System.Drawing.Point(500, 4);
             this.StatusTextRight.Name = "StatusTextRight";
             this.StatusTextRight.Size = new System.Drawing.Size(0, 13);
             this.StatusTextRight.TabIndex = 1;
@@ -210,14 +210,14 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(534, 561);
+            this.ClientSize = new System.Drawing.Size(504, 561);
             this.Controls.Add(this.splitContainer3);
             this.Controls.Add(this.menuStrip1);
             this.FormBorderStyle = System.Windows.Forms.FormBorderStyle.FixedSingle;
             this.Icon = ((System.Drawing.Icon)(resources.GetObject("$this.Icon")));
             this.MainMenuStrip = this.menuStrip1;
-            this.MaximumSize = new System.Drawing.Size(550, 600);
-            this.MinimumSize = new System.Drawing.Size(550, 600);
+            this.MaximumSize = new System.Drawing.Size(520, 600);
+            this.MinimumSize = new System.Drawing.Size(520, 600);
             this.Name = "MainWindow";
             this.SizeGripStyle = System.Windows.Forms.SizeGripStyle.Hide;
             this.Text = "Garry\'s Control4 Jailbreak";

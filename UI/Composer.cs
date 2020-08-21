@@ -82,5 +82,39 @@ namespace  Garry.Control4.Jailbreak
 		{
 			System.Diagnostics.Process.Start( $"https://www.reddit.com/r/C4diy/" );
 		}
+
+        private void UpdateCertificates( object sender, EventArgs e )
+        {
+			var log = new LogWindow( MainWindow );
+
+			log.WriteNormal( "Copying To Composer\n" );
+			if ( !PatchComposer( log ) )
+			{
+				return;
+			}
+			log.WriteNormal( "\n\n" );
+		}
+
+
+		bool PatchComposer( LogWindow log )
+		{
+			var configFolder = $"{Environment.GetFolderPath( Environment.SpecialFolder.ApplicationData )}\\Control4\\Composer";
+
+			CopyFile( log, $"Certs/{Constants.ComposerCertName}", $"{configFolder}\\{Constants.ComposerCertName}" );
+			CopyFile( log, $"Certs/composer.p12", $"{configFolder}\\composer.p12" );
+
+			return true;
+		}
+
+		private void CopyFile( LogWindow log, string a, string b )
+		{
+			log.WriteNormal( $"Copying " );
+			log.WriteHighlight( a );
+			log.WriteNormal( $" to " );
+			log.WriteHighlight( b );
+			log.WriteNormal( $"\n" );
+
+			System.IO.File.Copy( a, b, true );
+		}
 	}
 }
