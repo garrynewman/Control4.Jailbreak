@@ -8,7 +8,7 @@ namespace Garry.Control4.Jailbreak
 {
 	public static class Constants
 	{
-		public const int Version = 2;
+		public const int Version = 3;
 
 		/// <summary>
 		/// The cert for composer needs to be named cacert-*.pem
@@ -39,7 +39,7 @@ namespace Garry.Control4.Jailbreak
 		/// <summary>
 		/// Where OpenSSL's Config is located (it's installed with Composer)
 		/// </summary>
-		public const string OpenSslConfig = @"C:\Program Files (x86)\Control4\Composer\Pro\RemoteAccess\config\openssl.cfg";
+		public const string OpenSslConfig = @"Certs\openssl.cfg";
 
 		/// <summary>
 		/// What version of Director/Composer we're aiming at

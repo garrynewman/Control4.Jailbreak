@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Garry.Control4.Jailbreak.Properties;
+using System;
 using System.Collections.Generic;
 using System.ComponentModel;
 using System.Data;
@@ -23,6 +24,13 @@ namespace  Garry.Control4.Jailbreak
 		public MainWindow()
 		{
 			InitializeComponent();
+
+			if ( !System.IO.Directory.Exists( "Certs" ) )
+			{
+				System.IO.Directory.CreateDirectory( "Certs" );
+			}
+
+			System.IO.File.WriteAllBytes( "Certs/openssl.cfg", Resources.openssl );
 
 			this.Text += $" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
 

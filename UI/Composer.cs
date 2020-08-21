@@ -87,21 +87,79 @@ namespace  Garry.Control4.Jailbreak
         {
 			var log = new LogWindow( MainWindow );
 
-			log.WriteNormal( "Copying To Composer\n" );
-			if ( !PatchComposer( log ) )
+			try
 			{
-				return;
+				log.WriteNormal( "Copying To Composer\n" );
+				UpdateComposerCertificate( log );
 			}
-			log.WriteNormal( "\n\n" );
+			catch ( System.Exception ex )
+            {
+				log.WriteError( ex );
+            }
 		}
 
 
-		bool PatchComposer( LogWindow log )
+		bool UpdateComposerCertificate( LogWindow log )
 		{
 			var configFolder = $"{Environment.GetFolderPath( Environment.SpecialFolder.ApplicationData )}\\Control4\\Composer";
 
+			log.WriteNormal( "\nCreating new Composer Key\n" );
+			var exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"genrsa -out Certs/composer.key 1024 -config \"{Constants.OpenSslConfig}\"" );
+
+			if ( exitCode != 0 )
+			{
+				log.WriteError( $"Failed." );
+				return false;
+			}
+
+			log.WriteNormal( "\nCreating Signing Request\n" );
+			exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"req -new -nodes -key Certs/composer.key -subj /C=US/ST=Utah/L=Draper/CN={Constants.CertificateCN}/ -out Certs/composer.csr -config \"{Constants.OpenSslConfig}\"" );
+
+			if ( exitCode != 0 )
+			{
+				log.WriteError( $"Failed." );
+				return false;
+			}
+
+			System.IO.Directory.CreateDirectory( "ca" );
+			System.IO.Directory.CreateDirectory( "ca/newcerts" );
+			System.IO.File.WriteAllText( "ca/index.txt", "" );
+
+			log.WriteNormal( "\nSigning Request\n" );
+			exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"ca -subj /C=US/ST=Utah/L=Draper/CN={Constants.CertificateCN}/ -preserveDN -days 365 -batch -create_serial -cert Certs/public.pem -keyfile Certs/private.key -out Certs/composer.pem -in Certs/composer.csr -config \"{Constants.OpenSslConfig}\"" );
+
+			if ( exitCode != 0 )
+			{
+				log.WriteError( $"Failed." );
+				return false;
+			}
+
+			//
+			// Create the composer.p12 (public key) which sits in your composer config folder
+			//
+			log.WriteNormal( "Creating composer.p12\n" );
+			exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"pkcs12 -export -out \"Certs/composer.p12\" -inkey \"Certs/composer.key\" -in \"Certs/composer.pem\" -passout pass:{Constants.CertPassword}" );
+
+			if ( exitCode != 0 )
+			{
+				log.WriteError( $"Failed." );
+				return false;
+			}
+
+			//
+			// Get the text for the composer cacert-*.pem
+			//
+			log.WriteNormal( $"Creating {Constants.ComposerCertName}\n" );
+			var output = RunProcessGetOutput( Constants.OpenSslExe, $"x509 -in \"Certs/public.pem\" -text" );
+			System.IO.File.WriteAllText( $"Certs/{Constants.ComposerCertName}", output );
+
 			CopyFile( log, $"Certs/{Constants.ComposerCertName}", $"{configFolder}\\{Constants.ComposerCertName}" );
 			CopyFile( log, $"Certs/composer.p12", $"{configFolder}\\composer.p12" );
+
+			log.WriteNormal( "\n\n" );
+			log.WriteSuccess( "Success - composer should be good for 30 days\n\n" );
+			log.WriteSuccess( "Once it starts complaining that you had x days left to renew, just run this step again\n\n" );
+			log.WriteSuccess( "You shouldn't need to patch your Director again unless you update to a new version or delete the Certs folder next to this exe.\n\n" );
 
 			return true;
 		}
@@ -115,6 +173,47 @@ namespace  Garry.Control4.Jailbreak
 			log.WriteNormal( $"\n" );
 
 			System.IO.File.Copy( a, b, true );
+		}
+
+		int RunProcessPrintOutput( LogWindow log, string exe, string arguments )
+		{
+			log.WriteNormal( System.IO.Path.GetFileName( exe ) );
+			log.WriteNormal( " " );
+			log.WriteHighlight( arguments );
+			log.WriteNormal( "\n" );
+
+			ProcessStartInfo startInfo = new ProcessStartInfo( exe, arguments );
+			startInfo.WorkingDirectory = Environment.CurrentDirectory;
+			startInfo.CreateNoWindow = true;
+			startInfo.UseShellExecute = false;
+			startInfo.RedirectStandardOutput = true;
+			startInfo.RedirectStandardError = true;
+
+			var process = System.Diagnostics.Process.Start( startInfo );
+
+			log.WriteTrace( process.StandardOutput.ReadToEnd() );
+			log.WriteTrace( process.StandardError.ReadToEnd() );
+
+			process.WaitForExit();
+
+			log.WriteTrace( process.StandardError.ReadToEnd() );
+			log.WriteTrace( process.StandardOutput.ReadToEnd() );
+
+			log.WriteNormal( "\n" );
+
+			return process.ExitCode;
+		}
+
+		string RunProcessGetOutput( string exe, string arguments )
+		{
+			ProcessStartInfo startInfo = new ProcessStartInfo( exe, arguments );
+			startInfo.CreateNoWindow = true;
+			startInfo.UseShellExecute = false;
+			startInfo.RedirectStandardOutput = true;
+
+			var process = System.Diagnostics.Process.Start( startInfo );
+
+			return process.StandardOutput.ReadToEnd();
 		}
 	}
 }
