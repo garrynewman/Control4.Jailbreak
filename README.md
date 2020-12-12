@@ -1,6 +1,6 @@
 # What
 
-Jailbreak tool for Control4 3.1.3 - allowing add/rename/move rooms/drivers/devices without being a dealer.
+Jailbreak tool for Control4 3.2.1 - allowing add/rename/move rooms/drivers/devices without being a dealer.
 
 # Why
 
@@ -16,7 +16,7 @@ Head over to the [releases page](https://github.com/garrynewman/Control4.Jailbre
 
 ## Follow Each Step
 
-![Steps](https://files.facepunch.com/garry/addd62d9-6d02-4030-b0ff-788e01fdec67.png)
+![Steps](https://files.facepunch.com/garry/aba22fcf-672e-41e1-8184-f74d4d8a0b53.png)
 
 ## Enjoy
 
