@@ -27,8 +27,19 @@ namespace  Garry.Control4.Jailbreak
 
 		private void PatchComposer( object sender, EventArgs eventargs )
 		{
-			var oldLine = "<setting name=\"ComposerPro_LicensingService_Licensing\" serializeAs=\"String\">";
-			var newLine = "<setting name=\"ComposerPro_LicensingService_Licensing\" serializeAs=\"0\">";
+			var oldLine = "</Web>";
+			var newLine = @"</Web>
+
+<system.net>
+    <connectionManagement>
+      <add address=""*"" maxconnection=""20"" />
+    </connectionManagement>
+    <defaultProxy>
+      <proxy usesystemdefault=""false"" proxyaddress=""http://127.0.0.1:31337/"" bypassonlocal=""True""/>
+    </defaultProxy>
+  </system.net>
+
+";
 
 			var log = new LogWindow( MainWindow );
 
@@ -215,5 +226,5 @@ namespace  Garry.Control4.Jailbreak
 
 			return process.StandardOutput.ReadToEnd();
 		}
-	}
+    }
 }

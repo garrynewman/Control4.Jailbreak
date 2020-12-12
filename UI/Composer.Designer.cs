@@ -28,6 +28,7 @@
 		/// </summary>
 		private void InitializeComponent()
 		{
+            System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Composer));
             this.label4 = new System.Windows.Forms.Label();
             this.label2 = new System.Windows.Forms.Label();
             this.label5 = new System.Windows.Forms.Label();
@@ -80,10 +81,9 @@
             | System.Windows.Forms.AnchorStyles.Right)));
             this.label3.Location = new System.Drawing.Point(15, 221);
             this.label3.Name = "label3";
-            this.label3.Size = new System.Drawing.Size(463, 34);
+            this.label3.Size = new System.Drawing.Size(463, 45);
             this.label3.TabIndex = 4;
-            this.label3.Text = "We can stop Composer asking Control4 if you\'re a dealer. To do this we change the" +
-    "  ComposerPro_LicensingService_Licensing setting in ComposerPro.exe.config. ";
+            this.label3.Text = resources.GetString("label3.Text");
             // 
             // button3
             // 

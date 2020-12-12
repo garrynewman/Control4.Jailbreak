@@ -117,4 +117,7 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="label3.Text" xml:space="preserve">
+    <value>We can stop composer checking with Control4 to see if you're a dealer by adding some stuff to the ComposerPro.exe.config file. Without this you'll have to disconnect your internet every time you start Composer.</value>
+  </data>
 </root>
