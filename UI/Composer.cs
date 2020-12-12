@@ -27,10 +27,12 @@ namespace  Garry.Control4.Jailbreak
 
 		private void PatchComposer( object sender, EventArgs eventargs )
 		{
-			var oldLine = "</Web>";
-			var newLine = @"</Web>
-
-<system.net>
+			var oldLine = @"  <system.net>
+    <connectionManagement>
+      <add address=""*"" maxconnection=""20"" />
+    </connectionManagement>
+  </system.net>";
+			var newLine = @"   <system.net>
     <connectionManagement>
       <add address=""*"" maxconnection=""20"" />
     </connectionManagement>
