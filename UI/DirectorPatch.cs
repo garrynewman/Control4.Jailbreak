@@ -10,6 +10,8 @@ using System.Windows.Forms;
 using System.IO;
 using System.Diagnostics;
 using Renci.SshNet;
+using RestSharp;
+using Newtonsoft.Json;
 using System.Linq.Expressions;
 using System.Runtime.InteropServices;
 using System.Net;
@@ -20,6 +22,7 @@ namespace  Garry.Control4.Jailbreak
 	public partial class DirectorPatch : UserControl
 	{
 		MainWindow MainWindow;
+
 
 		public DirectorPatch( MainWindow MainWindow )
 		{
@@ -32,9 +35,10 @@ namespace  Garry.Control4.Jailbreak
 
 		bool PatchDirector( LogWindow log )
 		{
+
 			var SshConnectionInfo = new ConnectionInfo( Address.Text.ToString(), Username.Text, new PasswordAuthenticationMethod( Username.Text, Password.Text ) );
 			SshConnectionInfo.RetryAttempts = 1;
-			SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 2 );
+			SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 6 );
 
 			using ( var ssh = new ScpClient( SshConnectionInfo ) )
 			{
@@ -46,6 +50,7 @@ namespace  Garry.Control4.Jailbreak
 				}
 				catch ( System.Exception e )
                 {
+					
 					log.WriteError( e );
 					return false;
                 }
@@ -190,15 +195,39 @@ namespace  Garry.Control4.Jailbreak
 
 			try
 			{
+				//ignore cert issues on controller
+				ServicePointManager.ServerCertificateValidationCallback += (sender, certificate, chain, sslPolicyErrors) => true;
+
 				var hostIPAddress = IPAddress.Parse( address );
 				var ab = new byte[6];
 				int len = ab.Length;
-				var r = SendARP( (int)hostIPAddress.Address, 0, ab, ref len );
-				if ( r != 0 ) return null;
-				var macAddress = BitConverter.ToString( ab, 0, 6 ).Replace( "-", "" );
 
-				var password = Convert.ToBase64String( new Rfc2898DeriveBytes( macAddress, salt, macAddress.Length * 397, HashAlgorithmName.SHA384 ).GetBytes( 33 ) );
-				return password;
+				//create request with RestSharp
+				var client = new RestClient("https://"+hostIPAddress+"/api/v1/broker_info");
+				//if you let this sit it will go on forever, I've given it a 2 sec windows which seems sufficent.
+				client.Timeout = 2000;
+				var request = new RestRequest(Method.GET);
+				IRestResponse response = client.Execute(request);
+				dynamic jsonResponse = Newtonsoft.Json.JsonConvert.DeserializeObject(response.Content);
+
+				//Command doesn't work across VPN or virtual machine
+				//var r = SendARP( (int)hostIPAddress.Address, 0, ab, ref len );
+
+				//if you get a 404, version is below 3.1, if brokerVersionDate = null then controller is blank and doesn't have a project.
+				//if controller doesn't have a project the password is the default password. 
+				if (response.StatusDescription == "OK" && jsonResponse.brokerVersionDate != null)
+				{
+					
+					string responseMac = jsonResponse.macAddr;
+					var password = Convert.ToBase64String(new Rfc2898DeriveBytes(responseMac, salt, responseMac.Length * 397, HashAlgorithmName.SHA384).GetBytes(33));
+					return password;
+				}
+				else
+				{
+					return "t0talc0ntr0l4!";
+				}
+
+				
 			}
 			catch ( System.Exception )
             {
@@ -214,7 +243,7 @@ namespace  Garry.Control4.Jailbreak
 			{
 				var SshConnectionInfo = new ConnectionInfo( Address.Text.ToString(), Username.Text, new PasswordAuthenticationMethod( Username.Text, Password.Text ) );
 				SshConnectionInfo.RetryAttempts = 1;
-				SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 5 );
+				SshConnectionInfo.Timeout = TimeSpan.FromSeconds( 10 );
 
 				log.WriteTrace( "Connecting To Director..\n" );
 
