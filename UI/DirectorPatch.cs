@@ -204,7 +204,7 @@ namespace  Garry.Control4.Jailbreak
 
 				//create request with RestSharp
 				var client = new RestClient("https://"+hostIPAddress+"/api/v1/broker_info");
-				//if you let this sit it will go on forever, I've given it a 2 sec windows which seems to suffice.
+				//if you let this sit, it will go on forever, I've given it a 2 sec windows which seems to suffice.
 				client.Timeout = 2000;
 				var request = new RestRequest(Method.GET);
 				IRestResponse response = client.Execute(request);
