@@ -8,7 +8,7 @@ namespace Garry.Control4.Jailbreak
 {
 	public static class Constants
 	{
-		public const int Version = 4;
+		public const int Version = 5;
 
 		/// <summary>
 		/// The cert for composer needs to be named cacert-*.pem
@@ -44,6 +44,6 @@ namespace Garry.Control4.Jailbreak
 		/// <summary>
 		/// What version of Director/Composer we're aiming at
 		/// </summary>
-		public const string TargetDirectorVersion = @"3.2.1";
+		public const string TargetDirectorVersion = @"3.2.3";
 	}
 }
