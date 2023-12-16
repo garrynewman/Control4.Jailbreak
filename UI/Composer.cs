@@ -25,21 +25,18 @@ namespace  Garry.Control4.Jailbreak
 			InitializeComponent();
 		}
 
-		private void PatchComposer( object sender, EventArgs eventargs )
+	private void PatchComposer(object sender, EventArgs eventargs)
 		{
-			var oldLine = @"  <system.net>
-    <connectionManagement>
-      <add address=""*"" maxconnection=""20"" />
-    </connectionManagement>
-  </system.net>";
+			var oldLinePattern = @"<system\.net>\s*<connectionManagement>\s*<add address=""\*"" maxconnection=""20"" />\s*</connectionManagement>\s*</system\.net>";
+
 			var newLine = @"   <system.net>
-    <connectionManagement>
-      <add address=""*"" maxconnection=""20"" />
-    </connectionManagement>
-    <defaultProxy>
-      <proxy usesystemdefault=""false"" proxyaddress=""http://127.0.0.1:31337/"" bypassonlocal=""True""/>
-    </defaultProxy>
-  </system.net>
+		<connectionManagement>
+		<add address=""*"" maxconnection=""20"" />
+		</connectionManagement>
+		<defaultProxy>
+		<proxy usesystemdefault=""false"" proxyaddress=""http://127.0.0.1:31337/"" bypassonlocal=""True""/>
+		</defaultProxy>
+	</system.net>
 
 ";
 
@@ -70,11 +67,12 @@ namespace  Garry.Control4.Jailbreak
 
 			var contents = System.IO.File.ReadAllText( open.FileName );
 
-			if ( !contents.Contains( oldLine ) )
-            {
+			var regex = new Regex(oldLinePattern, RegexOptions.Singleline);
+			if (!regex.IsMatch(contents))
+			{
 				log.WriteHighlight( "Couldn't find the line - probably already patched??" );
 				return;
-            }
+			}
 
 			log.WriteHighlight( $"Writing Backup..\n" );
 			System.IO.File.WriteAllText( open.FileName + $".backup-{DateTime.Now.ToString( "yyyy-dd-M--HH-mm-ss" )}", contents );
@@ -86,7 +84,7 @@ namespace  Garry.Control4.Jailbreak
 			log.WriteHighlight( $"Done!\n" );
 		}
 
-		private void SearchGoogleForComposer( object sender, EventArgs e )
+	private void SearchGoogleForComposer( object sender, EventArgs e )
 		{
 			System.Diagnostics.Process.Start( $"https://www.google.com/search?q=ComposerPro-3.1.3.574885-res.exe" );
 		}
