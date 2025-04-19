@@ -43,7 +43,14 @@
             this.label1.Name = "label1";
             this.label1.Size = new System.Drawing.Size(469, 176);
             this.label1.TabIndex = 14;
-            this.label1.Text = resources.GetString("label1.Text");
+            this.label1.Text = $@"
+Lets make some certificates.
+
+This will just generate some certificates we need and put them in a '{Constants.CertsFolder}' folder next to this exe.
+
+You only need to do this once and we'll reuse the certificates in that folder. 
+If you want to use Composer Pro on multiple computers, just copy this exe with the '{Constants.CertsFolder}' and '{Constants.KeysFolder}' folders to that computer.
+";
             // 
             // label2
             // 
