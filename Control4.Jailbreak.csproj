@@ -59,8 +59,8 @@
     </StartupObject>
   </PropertyGroup>
   <ItemGroup>
-    <Reference Include="Renci.SshNet, Version=2020.0.1.0, Culture=neutral, PublicKeyToken=1cee9f8bde3db106, processorArchitecture=MSIL">
-      <HintPath>packages\SSH.NET.2020.0.1\lib\net40\Renci.SshNet.dll</HintPath>
+    <Reference Include="Renci.SshNet, Version=2023.0.0.0, Culture=neutral, PublicKeyToken=1cee9f8bde3db106, processorArchitecture=MSIL">
+      <HintPath>packages\SSH.NET.2023.0.0\lib\net462\Renci.SshNet.dll</HintPath>
     </Reference>
     <Reference Include="System" />
     <Reference Include="System.ComponentModel.Composition" />
@@ -99,18 +99,11 @@
     <Compile Include="UI\Director.cs">
       <SubType>UserControl</SubType>
     </Compile>
-    <Compile Include="DirectorManager.cs" />
     <Compile Include="UI\Composer.cs">
       <SubType>UserControl</SubType>
     </Compile>
     <Compile Include="UI\Composer.Designer.cs">
       <DependentUpon>Composer.cs</DependentUpon>
-    </Compile>
-    <Compile Include="UI\Backup.cs">
-      <SubType>UserControl</SubType>
-    </Compile>
-    <Compile Include="UI\Backup.Designer.cs">
-      <DependentUpon>Backup.cs</DependentUpon>
     </Compile>
     <Compile Include="UI\LogWindow.cs">
       <SubType>Form</SubType>
@@ -126,12 +119,8 @@
     </Compile>
     <Compile Include="Program.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="Soap\GetCommonName.cs" />
-    <Compile Include="Soap\GetItems.cs" />
-    <Compile Include="Soap\GetVersionInfo.cs" />
     <Compile Include="Utility\Sddp.cs" />
     <Compile Include="Utility\Sddp.DeviceResponse.cs" />
-    <Compile Include="Utility\SoapClient.cs" />
     <EmbeddedResource Include="UI\Certificates.resx">
       <DependentUpon>Certificates.cs</DependentUpon>
     </EmbeddedResource>
@@ -140,9 +129,6 @@
     </EmbeddedResource>
     <EmbeddedResource Include="UI\Composer.resx">
       <DependentUpon>Composer.cs</DependentUpon>
-    </EmbeddedResource>
-    <EmbeddedResource Include="UI\Backup.resx">
-      <DependentUpon>Backup.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="UI\LogWindow.resx">
       <DependentUpon>LogWindow.cs</DependentUpon>

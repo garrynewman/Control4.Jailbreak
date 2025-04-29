@@ -1,109 +1,107 @@
-﻿using Garry.Control4.Jailbreak.Properties;
-using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Data;
-using System.Drawing;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System;
 using System.Windows.Forms;
+using Garry.Control4.Jailbreak.Properties;
 
-namespace  Garry.Control4.Jailbreak
+namespace Garry.Control4.Jailbreak.UI
 {
-	public partial class MainWindow : Form
-	{
-		public Certificates Certificates { get; set; }
-		public Composer Composer { get; set; }
-		public Director Director { get; set; }
-		
-		public DirectorPatch DirectorPatch { get; set; }
-		public DirectorManager ConnectedDirector { get; set; }
-		
+    public partial class MainWindow : Form
+    {
+        private Certificates Certificates { get; }
+        private Composer Composer { get; }
+        private Director Director { get; }
 
-		public MainWindow()
-		{
-			InitializeComponent();
+        public DirectorPatch DirectorPatch { get; }
 
-			if ( !System.IO.Directory.Exists( "Certs" ) )
-			{
-				System.IO.Directory.CreateDirectory( "Certs" );
-			}
 
-			System.IO.File.WriteAllBytes( "Certs/openssl.cfg", Resources.openssl );
+        public MainWindow()
+        {
+            InitializeComponent();
 
-			this.Text += $" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
+            if (!System.IO.Directory.Exists("Certs"))
+            {
+                System.IO.Directory.CreateDirectory("Certs");
+            }
 
-			TabControl.TabPages.Clear();
+            System.IO.File.WriteAllBytes("Certs/openssl.cfg", Resources.openssl);
 
-			Director = new Director( this );
+            Text += $@" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
 
-			Certificates = new Certificates( this );
-			TabControl.TabPages.Add( "Certificates" );
-			Certificates.Parent = TabControl.TabPages[0];
-			Certificates.Dock = DockStyle.Fill;
+            TabControl.TabPages.Clear();
 
-			Composer = new Composer( this );
-			TabControl.TabPages.Add( "Composer" );
-			Composer.Parent = TabControl.TabPages[ 1 ];
-			Composer.Dock = DockStyle.Fill;
+            Director = new Director(this);
 
-			DirectorPatch = new DirectorPatch( this );
-			TabControl.TabPages.Add( "Director" );
-			DirectorPatch.Parent = TabControl.TabPages[ 2 ];
-			DirectorPatch.Dock = DockStyle.Fill;
+            Certificates = new Certificates(this);
+            TabControl.TabPages.Add("Certificates");
+            Certificates.Parent = TabControl.TabPages[0];
+            Certificates.Dock = DockStyle.Fill;
 
-			CenterToScreen();
+            Composer = new Composer(this);
+            TabControl.TabPages.Add("Composer");
+            Composer.Parent = TabControl.TabPages[1];
+            Composer.Dock = DockStyle.Fill;
 
-			Load += OnLoaded;
-		}
+            DirectorPatch = new DirectorPatch(this);
+            TabControl.TabPages.Add("Director");
+            DirectorPatch.Parent = TabControl.TabPages[2];
+            DirectorPatch.Dock = DockStyle.Fill;
 
-		private async void OnLoaded( object sender, EventArgs e )
-		{
-			DirectorDisconnected();
+            CenterToScreen();
 
-			await Director.RefreshList();
-		}
+            Load += OnLoaded;
+        }
 
-		private void OnFormClosed( object sender, FormClosedEventArgs e )
-		{
-			Application.Exit();
-		}
+        public sealed override string Text
+        {
+            get => base.Text;
+            set => base.Text = value;
+        }
 
-		public void SetStatusRight( string txt )
-		{
-			this.StatusTextRight.Text = txt;
-		}
+        private void OnLoaded(object sender, EventArgs e)
+        {
+            DirectorDisconnected();
 
-		private void OpenComposerFolder( object sender, EventArgs e )
-		{
-			System.Diagnostics.Process.Start( $"C:\\Program Files (x86)\\Control4\\Composer" );
-		}
+            Director.RefreshList();
+        }
 
-		private void OpenComposerSettingsFolder( object sender, EventArgs e )
-		{
-			System.Diagnostics.Process.Start( $"{Environment.GetFolderPath( Environment.SpecialFolder.ApplicationData )}\\Control4" );
-		}
+        private void OnFormClosed(object sender, FormClosedEventArgs e)
+        {
+            Application.Exit();
+        }
 
-		internal void DirectorDisconnected()
-		{
-			ConnectedDirector = null;
-			Director.DirectorDisconnected();
-		}
+        public void SetStatusRight(string txt)
+        {
+            StatusTextRight.Text = txt;
+        }
 
-		private void ViewOnGithub( object sender, EventArgs e )
-		{
-			System.Diagnostics.Process.Start( $"https://github.com/garrynewman/Control4.Jailbreak" );
-		}
+        private void OpenComposerFolder(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("C:\\Program Files (x86)\\Control4\\Composer");
+        }
 
-		private void FileAndQuit( object sender, EventArgs e )
-		{
-			Application.Exit();
-		}
+        private void OpenComposerSettingsFolder(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start(
+                $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\Control4");
+        }
 
-		private void VisitC4Diy( object sender, EventArgs e )
-		{
-			System.Diagnostics.Process.Start( $"https://www.reddit.com/r/C4diy/" );
-		}
-	}
+        private void DirectorDisconnected()
+        {
+            Director.DirectorDisconnected();
+        }
+
+        private void ViewOnGithub(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://github.com/garrynewman/Control4.Jailbreak");
+        }
+
+        private void FileAndQuit(object sender, EventArgs e)
+        {
+            Application.Exit();
+        }
+
+        private void VisitC4Diy(object sender, EventArgs e)
+        {
+            System.Diagnostics.Process.Start("https://www.reddit.com/r/C4diy/");
+        }
+    }
 }

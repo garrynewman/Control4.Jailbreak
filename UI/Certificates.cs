@@ -1,160 +1,180 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.ComponentModel;
-using System.Drawing;
-using System.Data;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.Diagnostics;
+using System.Windows.Forms;
 
-namespace Garry.Control4.Jailbreak
+namespace Garry.Control4.Jailbreak.UI
 {
     public partial class Certificates : UserControl
     {
-		MainWindow MainWindow;
+        private readonly MainWindow _mainWindow;
 
-		public Certificates( MainWindow MainWindow )
-		{
-			this.MainWindow = MainWindow;
-
-			InitializeComponent();
-		}
-
-        private void GenerateCertificates( object sender, EventArgs e )
+        public Certificates(MainWindow mainWindow)
         {
-			var log = new LogWindow( MainWindow );
+            _mainWindow = mainWindow;
 
-			log.WriteNormal( "Generating Certificates\n" );
-			if ( !GenerateCertificates( log ) )
-			{
-				return;
-			}
-			log.WriteSuccess( "Certificate Generation Successful" );
-			log.WriteNormal( "\n\n" );
-		}
+            InitializeComponent();
+        }
 
-        private void ViewCertificates( object sender, EventArgs e )
+        private void GenerateCertificates(object sender, EventArgs e)
         {
-			var folder = System.IO.Path.GetFullPath( "Certs" );
+            var log = new LogWindow(_mainWindow);
 
-			if ( !System.IO.Directory.Exists( folder ) )
-			{
-				var log = new LogWindow( MainWindow );
-				log.WriteError( $"{folder}doesn't exist - did you generate certificates yet?\n" );
-				return;
-			}
+            log.WriteNormal("Generating Certificates\n");
+            if (!GenerateCertificates(log))
+            {
+                return;
+            }
 
-			Process.Start( "explorer.exe", folder );
-		}
+            log.WriteSuccess("Certificate Generation Successful");
+            log.WriteNormal("\n\n");
+        }
 
-		bool GenerateCertificates( LogWindow log )
-		{
-			//
-			// Don't regenerate the certificates. They might be copying the folder
-			// over to another computer or some shit.
-			//
-			if ( System.IO.File.Exists( $"Certs/{Constants.ComposerCertName}" ) &&
-				System.IO.File.Exists( $"Certs/composer.p12" ) &&
-				System.IO.File.Exists( $"Certs/private.key" ) &&
-				System.IO.File.Exists( $"Certs/public.pem" ) )
-			{
-				log.WriteSuccess( $"\nThe certificates already exist - so we're going to use them.\n" );
-				System.Threading.Thread.Sleep( 1000 );
-				log.WriteSuccess( $"If you want to generate new certificates delete the Certs folder.\n\n" );
-				System.Threading.Thread.Sleep( 1000 );
-				return true;
-			}
+        private void ViewCertificates(object sender, EventArgs e)
+        {
+            var folder = System.IO.Path.GetFullPath("Certs");
 
-			if ( !System.IO.File.Exists( Constants.OpenSslExe ) )
-			{
-				log.WriteError( $"Couldn't find {Constants.OpenSslExe} - do you have composer installed?" );
-				return false;
-			}
+            if (!System.IO.Directory.Exists(folder))
+            {
+                var log = new LogWindow(_mainWindow);
+                log.WriteError($"{folder}doesn't exist - did you generate certificates yet?\n");
+                return;
+            }
 
-			if ( !System.IO.File.Exists( Constants.OpenSslConfig ) )
-			{
-				log.WriteError( $"Couldn't find {Constants.OpenSslConfig} - do you have composer installed?" );
-				return false;
-			}
+            Process.Start("explorer.exe", folder);
+        }
 
-			if ( !System.IO.Directory.Exists( "Certs" ) )
-			{
-				log.WriteTrace( "Creating Certs Folder\n" );
-				System.IO.Directory.CreateDirectory( "Certs" );
-			}
+        private static bool GenerateCertificates(LogWindow log)
+        {
+            //
+            // Don't regenerate the certificates. They might be copying the folder
+            // over to another computer or some shit.
+            //
+            if (System.IO.File.Exists($"Certs/{Constants.ComposerCertName}") &&
+                System.IO.File.Exists("Certs/composer.p12") &&
+                System.IO.File.Exists("Certs/private.key") &&
+                System.IO.File.Exists("Certs/public.pem"))
+            {
+                log.WriteSuccess("\nThe certificates already exist - so we're going to use them.\n");
+                System.Threading.Thread.Sleep(1000);
+                log.WriteSuccess("If you want to generate new certificates delete the Certs folder.\n\n");
+                System.Threading.Thread.Sleep(1000);
+                return true;
+            }
 
-			//
-			// generate a self signed private and public key
-			//
-			log.WriteNormal( "\nGenerating private + public keys\n" );
-			var exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"req -new -x509 -sha256 -nodes -days {Constants.CertificateExpireDays} -newkey rsa:1024 -keyout \"Certs/private.key\" -subj \"/C=US/ST=Utah/L=Draper/O=Control4/OU=Controller Certificates/CN={Constants.CertificateCN}/\" -out \"Certs/public.pem\" -config \"{Constants.OpenSslConfig}\"" );
+            if (!System.IO.File.Exists(Constants.OpenSslExe))
+            {
+                log.WriteError($"Couldn't find {Constants.OpenSslExe} - do you have composer installed?");
+                return false;
+            }
 
-			if ( exitCode != 0 )
-			{
-				log.WriteError( $"Failed." );
-				return false;
-			}
+            if (!System.IO.File.Exists(Constants.OpenSslConfig))
+            {
+                log.WriteError($"Couldn't find {Constants.OpenSslConfig} - do you have composer installed?");
+                return false;
+            }
 
-			//
-			// Create the composer.p12 (public key) which sits in your composer config folder
-			//
-			log.WriteNormal( "Creating composer.p12\n" );
-			exitCode = RunProcessPrintOutput( log, Constants.OpenSslExe, $"pkcs12 -export -out \"Certs/composer.p12\" -inkey \"Certs/private.key\" -in \"Certs/public.pem\" -passout pass:{Constants.CertPassword}" );
+            if (!System.IO.Directory.Exists("Certs"))
+            {
+                log.WriteTrace("Creating Certs Folder\n");
+                System.IO.Directory.CreateDirectory("Certs");
+            }
 
-			if ( exitCode != 0 )
-			{
-				log.WriteError( $"Failed." );
-				return false;
-			}
+            //
+            // generate a self-signed private and public key
+            //
+            log.WriteNormal("\nGenerating private + public keys\n");
+            var exitCode = RunProcessPrintOutput(
+                log,
+                Constants.OpenSslExe,
+                "req -new -x509 -sha256 -nodes " +
+                $"-days {Constants.CertificateExpireDays} " +
+                "-newkey rsa:1024 " +
+                "-keyout \"Certs/private.key\" " +
+                $"-subj \"/C=US/ST=Utah/L=Draper/O=Control4/OU=Controller Certificates/CN={Constants.CertificateCn}/\" " +
+                "-out \"Certs/public.pem\" " +
+                $"-config \"{Constants.OpenSslConfig}\"");
 
-			//
-			// Get the text for the composer cacert-*.pem
-			//
-			log.WriteNormal( $"Creating {Constants.ComposerCertName}\n" );
-			var output = RunProcessGetOutput( Constants.OpenSslExe, $"x509 -in \"Certs/public.pem\" -text" );
-			System.IO.File.WriteAllText( $"Certs/{Constants.ComposerCertName}", output );
+            if (exitCode != 0)
+            {
+                log.WriteError("Failed.");
+                return false;
+            }
 
-			return true;
+            //
+            // Create the composer.p12 (public key) which sits in your composer config folder
+            //
+            log.WriteNormal("Creating composer.p12\n");
+            exitCode = RunProcessPrintOutput(
+                log,
+                Constants.OpenSslExe,
+                "pkcs12 -export " +
+                "-out \"Certs/composer.p12\" " +
+                "-inkey \"Certs/private.key\" " +
+                "-in \"Certs/public.pem\" " +
+                $"-passout pass:{Constants.CertPassword}");
 
-		}
+            if (exitCode != 0)
+            {
+                log.WriteError("Failed.");
+                return false;
+            }
 
-		string RunProcessGetOutput( string exe, string arguments )
-		{
-			ProcessStartInfo startInfo = new ProcessStartInfo( exe, arguments );
-			startInfo.CreateNoWindow = true;
-			startInfo.UseShellExecute = false;
-			startInfo.RedirectStandardOutput = true;
+            //
+            // Get the text for the composer cacert-*.pem
+            //
+            log.WriteNormal($"Creating {Constants.ComposerCertName}\n");
+            var output = RunProcessGetOutput(
+                Constants.OpenSslExe,
+                "x509 -in \"Certs/public.pem\" -text"
+            );
+            System.IO.File.WriteAllText($"Certs/{Constants.ComposerCertName}", output);
 
-			var process = System.Diagnostics.Process.Start( startInfo );
+            return true;
+        }
 
-			return process.StandardOutput.ReadToEnd();
-		}
+        private static string RunProcessGetOutput(string exe, string arguments)
+        {
+            var startInfo = new ProcessStartInfo(exe, arguments)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true
+            };
 
-		int RunProcessPrintOutput( LogWindow log, string exe, string arguments )
-		{
-			log.WriteNormal( System.IO.Path.GetFileName( exe ) );
-			log.WriteNormal( " " );
-			log.WriteHighlight( arguments );
-			log.WriteNormal( "\n" );
+            var process = Process.Start(startInfo);
+            return process?.StandardOutput.ReadToEnd();
+        }
 
-			ProcessStartInfo startInfo = new ProcessStartInfo( exe, arguments );
-			startInfo.CreateNoWindow = true;
-			startInfo.UseShellExecute = false;
-			startInfo.RedirectStandardOutput = true;
+        private static int RunProcessPrintOutput(LogWindow log, string exe, string arguments)
+        {
+            log.WriteNormal(System.IO.Path.GetFileName(exe));
+            log.WriteNormal(" ");
+            log.WriteHighlight(arguments);
+            log.WriteNormal("\n");
 
-			var process = System.Diagnostics.Process.Start( startInfo );
+            var startInfo = new ProcessStartInfo(exe, arguments)
+            {
+                CreateNoWindow = true,
+                UseShellExecute = false,
+                RedirectStandardOutput = true
+            };
 
-			process.WaitForExit();
+            var process = Process.Start(startInfo);
+            if (process == null)
+            {
+                log.WriteError($"Failed to start {exe} {arguments}\n");
+                return -1;
+            }
 
-			var text = process.StandardOutput.ReadToEnd();
+            process.WaitForExit();
 
-			log.WriteTrace( text );
+            var text = process.StandardOutput.ReadToEnd();
 
-			log.WriteNormal( "\n" );
+            log.WriteTrace(text);
 
-			return process.ExitCode;
-		}
-	}
+            log.WriteNormal("\n");
+
+            return process.ExitCode;
+        }
+    }
 }
