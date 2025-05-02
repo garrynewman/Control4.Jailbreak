@@ -149,5 +149,15 @@ namespace Garry.Control4.Jailbreak.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap com_port {
+            get {
+                object obj = ResourceManager.GetObject("com-port", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
     }
 }
