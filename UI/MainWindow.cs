@@ -9,6 +9,7 @@ namespace Garry.Control4.Jailbreak.UI
         private Certificates Certificates { get; }
         private Composer Composer { get; }
         private Director Director { get; }
+        private UartRecovery UartRecovery { get; }
 
         public DirectorPatch DirectorPatch { get; }
 
@@ -49,6 +50,11 @@ namespace Garry.Control4.Jailbreak.UI
             TabControl.TabPages.Add("Director");
             DirectorPatch.Parent = TabControl.TabPages[2];
             DirectorPatch.Dock = DockStyle.Fill;
+            
+            UartRecovery = new UartRecovery(this);
+            TabControl.TabPages.Add("UART Recovery");
+            UartRecovery.Parent = TabControl.TabPages[3];
+            UartRecovery.Dock = DockStyle.Fill;
 
             CenterToScreen();
 
