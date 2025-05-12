@@ -1,4 +1,4 @@
-﻿namespace  Garry.Control4.Jailbreak
+﻿namespace  Garry.Control4.Jailbreak.UI
 {
 	partial class DirectorPatch
 	{

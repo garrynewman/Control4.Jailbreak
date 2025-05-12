@@ -1,22 +1,20 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using System.Windows.Forms;
+using Garry.Control4.Jailbreak.UI;
 
-namespace  Garry.Control4.Jailbreak
+namespace Garry.Control4.Jailbreak
 {
-	static class Program
-	{
-		/// <summary>
-		/// The main entry point for the application.
-		/// </summary>
-		[STAThread]
-		static void Main()
-		{
-			Application.EnableVisualStyles();
-			Application.SetCompatibleTextRenderingDefault( false );
-			Application.Run( new MainWindow() );
-		}
-	}
+    internal static class Program
+    {
+        /// <summary>
+        /// The main entry point for the application.
+        /// </summary>
+        [STAThread]
+        private static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new MainWindow());
+        }
+    }
 }
