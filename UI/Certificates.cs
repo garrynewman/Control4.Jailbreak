@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Garry.Control4.Jailbreak.UI
@@ -17,9 +18,7 @@ namespace Garry.Control4.Jailbreak.UI
 
         private void GenerateCertificates(object sender, EventArgs e)
         {
-            var log = new LogWindow(_mainWindow);
-
-            log.WriteNormal("Generating Certificates\n");
+            var log = new LogWindow(_mainWindow, "Generate Certificates");
             if (!GenerateCertificates(log))
             {
                 return;
@@ -31,9 +30,9 @@ namespace Garry.Control4.Jailbreak.UI
 
         private void ViewCertificates(object sender, EventArgs e)
         {
-            var folder = System.IO.Path.GetFullPath("Certs");
+            var folder = Path.GetFullPath(Constants.CertsFolder);
 
-            if (!System.IO.Directory.Exists(folder))
+            if (!Directory.Exists(folder))
             {
                 var log = new LogWindow(_mainWindow);
                 log.WriteError($"{folder}doesn't exist - did you generate certificates yet?\n");
@@ -45,78 +44,59 @@ namespace Garry.Control4.Jailbreak.UI
 
         private static bool GenerateCertificates(LogWindow log)
         {
-            //
-            // Don't regenerate the certificates. They might be copying the folder
-            // over to another computer or some shit.
-            //
-            if (System.IO.File.Exists($"Certs/{Constants.ComposerCertName}") &&
-                System.IO.File.Exists("Certs/composer.p12") &&
-                System.IO.File.Exists("Certs/private.key") &&
-                System.IO.File.Exists("Certs/public.pem"))
-            {
-                log.WriteSuccess("\nThe certificates already exist - so we're going to use them.\n");
-                System.Threading.Thread.Sleep(1000);
-                log.WriteSuccess("If you want to generate new certificates delete the Certs folder.\n\n");
-                System.Threading.Thread.Sleep(1000);
-                return true;
-            }
-
-            if (!System.IO.File.Exists(Constants.OpenSslExe))
+            if (!File.Exists(Constants.OpenSslExe))
             {
                 log.WriteError($"Couldn't find {Constants.OpenSslExe} - do you have composer installed?");
                 return false;
             }
 
-            if (!System.IO.File.Exists(Constants.OpenSslConfig))
+            if (!File.Exists(Constants.OpenSslConfig))
             {
                 log.WriteError($"Couldn't find {Constants.OpenSslConfig} - do you have composer installed?");
                 return false;
             }
 
-            if (!System.IO.Directory.Exists("Certs"))
+            if (!Directory.Exists(Constants.CertsFolder))
             {
-                log.WriteTrace("Creating Certs Folder\n");
-                System.IO.Directory.CreateDirectory("Certs");
+                log.WriteTrace($"Creating {Constants.CertsFolder} Folder\n");
+                Directory.CreateDirectory(Constants.CertsFolder);
             }
 
             //
-            // generate a self-signed private and public key
+            // Don't regenerate the certificates. They might be copying the folder
+            // over to another computer or some shit.
             //
-            log.WriteNormal("\nGenerating private + public keys\n");
-            var exitCode = RunProcessPrintOutput(
-                log,
-                Constants.OpenSslExe,
-                "req -new -x509 -sha256 -nodes " +
-                $"-days {Constants.CertificateExpireDays} " +
-                "-newkey rsa:1024 " +
-                "-keyout \"Certs/private.key\" " +
-                $"-subj \"/C=US/ST=Utah/L=Draper/O=Control4/OU=Controller Certificates/CN={Constants.CertificateCn}/\" " +
-                "-out \"Certs/public.pem\" " +
-                $"-config \"{Constants.OpenSslConfig}\"");
-
-            if (exitCode != 0)
+            if (File.Exists($"{Constants.CertsFolder}/{Constants.ComposerCertName}") &&
+                File.Exists($"{Constants.CertsFolder}/private.key") &&
+                File.Exists($"{Constants.CertsFolder}/public.pem"))
             {
-                log.WriteError("Failed.");
-                return false;
+                log.WriteSuccess("\nThe certificates already exist - so we're going to use them.\n");
+                System.Threading.Thread.Sleep(1000);
+                log.WriteSuccess(
+                    $"If you want to generate new certificates delete the {Constants.CertsFolder} folder.\n\n");
             }
-
-            //
-            // Create the composer.p12 (public key) which sits in your composer config folder
-            //
-            log.WriteNormal("Creating composer.p12\n");
-            exitCode = RunProcessPrintOutput(
-                log,
-                Constants.OpenSslExe,
-                "pkcs12 -export " +
-                "-out \"Certs/composer.p12\" " +
-                "-inkey \"Certs/private.key\" " +
-                "-in \"Certs/public.pem\" " +
-                $"-passout pass:{Constants.CertPassword}");
-
-            if (exitCode != 0)
+            else
             {
-                log.WriteError("Failed.");
-                return false;
+                //
+                // generate a self-signed private and public key
+                //
+                log.WriteNormal("\nGenerating private + public keys\n");
+                var exitCode = RunProcessPrintOutput(
+                    log,
+                    Constants.OpenSslExe,
+                    "req -new -x509 -sha1 -nodes " +
+                    $"-days {Constants.CertificateExpireDays} " +
+                    "-newkey rsa:1024 " +
+                    $"-keyout \"{Constants.CertsFolder}/private.key\" " +
+                    "-subj \"/C=US/ST=Utah/L=Draper/O=Control4 Corporation/CN=Control4 Corporation CA/emailAddress=pki@control4.com/\" " +
+                    $"-out \"{Constants.CertsFolder}/public.pem\""
+                );
+
+                if (exitCode != 0)
+                {
+                    log.WriteError("Failed.");
+                    return false;
+                }
             }
 
             //
@@ -125,9 +105,9 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteNormal($"Creating {Constants.ComposerCertName}\n");
             var output = RunProcessGetOutput(
                 Constants.OpenSslExe,
-                "x509 -in \"Certs/public.pem\" -text"
+                $"x509 -in \"{Constants.CertsFolder}/public.pem\" -text"
             );
-            System.IO.File.WriteAllText($"Certs/{Constants.ComposerCertName}", output);
+            File.WriteAllText($"{Constants.CertsFolder}/{Constants.ComposerCertName}", output);
 
             return true;
         }
@@ -138,16 +118,18 @@ namespace Garry.Control4.Jailbreak.UI
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                EnvironmentVariables = { ["OPENSSL_CONF"] = Path.GetFullPath(Constants.OpenSslConfig) }
             };
 
             var process = Process.Start(startInfo);
+
             return process?.StandardOutput.ReadToEnd();
         }
 
         private static int RunProcessPrintOutput(LogWindow log, string exe, string arguments)
         {
-            log.WriteNormal(System.IO.Path.GetFileName(exe));
+            log.WriteNormal(Path.GetFileName(exe));
             log.WriteNormal(" ");
             log.WriteHighlight(arguments);
             log.WriteNormal("\n");
@@ -156,7 +138,8 @@ namespace Garry.Control4.Jailbreak.UI
             {
                 CreateNoWindow = true,
                 UseShellExecute = false,
-                RedirectStandardOutput = true
+                RedirectStandardOutput = true,
+                EnvironmentVariables = { ["OPENSSL_CONF"] = Path.GetFullPath(Constants.OpenSslConfig) }
             };
 
             var process = Process.Start(startInfo);

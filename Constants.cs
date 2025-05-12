@@ -2,22 +2,32 @@
 {
     public static class Constants
     {
-        public const int Version = 5;
+        public const int Version = 6;
 
         /// <summary>
         /// The cert for composer needs to be named cacert-*.pem
         /// </summary>
-        public const string ComposerCertName = "cacert-jailbreak.pem";
+        public const string ComposerCertName = "cacert-dev.pem";
 
         /// <summary>
         /// Needs to start with Composer_ and can be anything after
         /// </summary>
-        public const string CertificateCn = "Composer_GarryJailbreak";
+        public const string CertificateCn = "Composer_tech@control4.com_dev";
 
         /// <summary>
         /// Should always be this unless they change something internally
         /// </summary>
         public const string CertPassword = "R8lvpqtgYiAeyO8j8Pyd";
+
+        /// <summary>
+        /// Where the CA and composer certs are stored
+        /// </summary>
+        public const string CertsFolder = "Certs";
+
+        /// <summary>
+        /// Where ssh keys are stored
+        /// </summary>
+        public const string KeysFolder = "Keys - DO NOT DELETE";
 
         /// <summary>
         /// How many days until the certificate expires. Doesn't seem any harm in setting this to
@@ -38,6 +48,6 @@
         /// <summary>
         /// What version of Director/Composer we're aiming at
         /// </summary>
-        public const string TargetDirectorVersion = @"3.2.3";
+        public const string TargetDirectorVersion = @"4.0.0";
     }
 }

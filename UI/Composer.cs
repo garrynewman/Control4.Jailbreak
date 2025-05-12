@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Diagnostics;
+using System.IO;
 using System.Windows.Forms;
 
 namespace Garry.Control4.Jailbreak.UI
@@ -17,22 +18,6 @@ namespace Garry.Control4.Jailbreak.UI
 
         private void PatchComposer(object sender, EventArgs eventargs)
         {
-            const string oldLine = @"  <system.net>
-    <connectionManagement>
-      <add address=""*"" maxconnection=""20"" />
-    </connectionManagement>
-  </system.net>";
-            const string newLine = @"   <system.net>
-    <connectionManagement>
-      <add address=""*"" maxconnection=""20"" />
-    </connectionManagement>
-    <defaultProxy>
-      <proxy usesystemdefault=""false"" proxyaddress=""http://127.0.0.1:31337/"" bypassonlocal=""True""/>
-    </defaultProxy>
-  </system.net>
-
-";
-
             var log = new LogWindow(_mainWindow);
 
             log.WriteTrace("Asking for ComposerPro.exe.config location\n");
@@ -58,22 +43,55 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteNormal("Opening ");
             log.WriteHighlight($"{open.FileName}\n");
 
-            var contents = System.IO.File.ReadAllText(open.FileName);
-
-            if (!contents.Contains(oldLine))
+            try
             {
-                log.WriteHighlight("Couldn't find the line - probably already patched??");
-                return;
+                // Load the XML document
+                var xmlDoc = System.Xml.Linq.XDocument.Load(open.FileName);
+
+                // Find the <system.net> element
+                var systemNet = xmlDoc.Root?.Element("system.net");
+                if (systemNet == null)
+                {
+                    log.WriteError("Could not find the <system.net> node in the configuration file.\n");
+                    return;
+                }
+
+                // Find or add <defaultProxy> element
+                var defaultProxy = systemNet.Element("defaultProxy");
+                if (defaultProxy != null)
+                {
+                    log.WriteHighlight("Couldn't find the line - probably already patched??");
+                    return;
+                }
+
+                log.WriteNormal("<defaultProxy> node not found. Adding it...\n");
+
+                defaultProxy = new System.Xml.Linq.XElement("defaultProxy",
+                    new System.Xml.Linq.XElement("proxy",
+                        new System.Xml.Linq.XAttribute("usesystemdefault", "false"),
+                        new System.Xml.Linq.XAttribute("proxyaddress", "http://127.0.0.1:31337/"),
+                        new System.Xml.Linq.XAttribute("bypassonlocal", "true")
+                    )
+                );
+
+                systemNet.Add(defaultProxy);
+
+                log.WriteHighlight("Added <defaultProxy> node.\n");
+
+                // Backup and save the modified XML
+                var backupPath = open.FileName + $".backup-{DateTime.Now:yyyy-dd-M--HH-mm-ss}";
+                log.WriteHighlight("Writing Backup..\n");
+                File.Copy(open.FileName, backupPath);
+
+                log.WriteHighlight("Writing New File..\n");
+                xmlDoc.Save(open.FileName);
+
+                log.WriteHighlight("Done!\n");
             }
-
-            log.WriteHighlight("Writing Backup..\n");
-            System.IO.File.WriteAllText(open.FileName + $".backup-{DateTime.Now:yyyy-dd-M--HH-mm-ss}", contents);
-
-            log.WriteHighlight("Writing New File..\n");
-            contents = contents.Replace(oldLine, newLine);
-
-            System.IO.File.WriteAllText(open.FileName, contents);
-            log.WriteHighlight("Done!\n");
+            catch (Exception ex)
+            {
+                log.WriteError($"An error occurred: {ex.Message}\n");
+            }
         }
 
         private void SearchGoogleForComposer(object sender, EventArgs e)
@@ -88,11 +106,9 @@ namespace Garry.Control4.Jailbreak.UI
 
         private void UpdateCertificates(object sender, EventArgs e)
         {
-            var log = new LogWindow(_mainWindow);
-
+            var log = new LogWindow(_mainWindow, "Update Composer Certificates");
             try
             {
-                log.WriteNormal("Copying To Composer\n");
                 UpdateComposerCertificate(log);
             }
             catch (Exception ex)
@@ -104,18 +120,26 @@ namespace Garry.Control4.Jailbreak.UI
 
         private static void UpdateComposerCertificate(LogWindow log)
         {
-            var configFolder =
-                $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}\\Control4\\Composer";
+            if (!File.Exists(Constants.OpenSslExe))
+            {
+                log.WriteError($"Couldn't find {Constants.OpenSslExe} - do you have composer installed?");
+                return;
+            }
+
+            if (!File.Exists(Constants.OpenSslConfig))
+            {
+                log.WriteError($"Couldn't find {Constants.OpenSslConfig} - do you have composer installed?");
+                return;
+            }
 
             log.WriteNormal("\nCreating new Composer Key\n");
             var exitCode = RunProcessPrintOutput(
                 log,
                 Constants.OpenSslExe,
                 "genrsa " +
-                "-out Certs/composer.key " +
-                "1024 " +
-                $"-config \"{Constants.OpenSslConfig}\"");
-
+                $"-out {Constants.CertsFolder}/composer.key " +
+                "1024"
+            );
             if (exitCode != 0)
             {
                 log.WriteError("Failed.");
@@ -127,10 +151,10 @@ namespace Garry.Control4.Jailbreak.UI
                 log,
                 Constants.OpenSslExe,
                 "req -new -nodes " +
-                "-key Certs/composer.key " +
-                $"-subj \"/C=US/ST=Utah/L=Draper/CN={Constants.CertificateCn}/\" " +
-                "-out Certs/composer.csr " +
-                $"-config \"{Constants.OpenSslConfig}\"");
+                $"-key {Constants.CertsFolder}/composer.key " +
+                $"-subj \"/C=US/ST=Utah/L=Draper/CN={Constants.CertificateCn}\" " +
+                $"-out {Constants.CertsFolder}/composer.csr"
+            );
 
             if (exitCode != 0)
             {
@@ -142,23 +166,21 @@ namespace Garry.Control4.Jailbreak.UI
             exitCode = RunProcessPrintOutput(
                 log,
                 Constants.OpenSslExe,
-                "ca " +
-                $"-subj \"/C=US/ST=Utah/L=Draper/CN={Constants.CertificateCn}/\" " +
-                "-preserveDN " +
+                "x509 -req " +
+                $"-in {Constants.CertsFolder}/composer.csr " +
+                $"-CA {Constants.CertsFolder}/public.pem " +
+                $"-CAkey {Constants.CertsFolder}/private.key " +
+                "-CAcreateserial " +
+                $"-out {Constants.CertsFolder}/composer.pem " +
                 "-days 365 " +
-                "-batch " +
-                "-create_serial " +
-                "-cert Certs/public.pem " +
-                "-keyfile Certs/private.key " +
-                "-out Certs/composer.pem " +
-                "-in Certs/composer.csr " +
-                $"-config \"{Constants.OpenSslConfig}\"");
-
+                "-sha256"
+            );
             if (exitCode != 0)
             {
                 log.WriteError("Failed.");
                 return;
             }
+
 
             //
             // Create the composer.p12 (public key) which sits in your composer config folder
@@ -169,10 +191,11 @@ namespace Garry.Control4.Jailbreak.UI
                 Constants.OpenSslExe,
                 "pkcs12 " +
                 "-export " +
-                "-out \"Certs/composer.p12\" " +
-                "-inkey \"Certs/composer.key\" " +
-                "-in \"Certs/composer.pem\" " +
-                $"-passout pass:{Constants.CertPassword}");
+                $"-out \"{Constants.CertsFolder}/composer.p12\" " +
+                $"-inkey \"{Constants.CertsFolder}/composer.key\" " +
+                $"-in \"{Constants.CertsFolder}/composer.pem\" " +
+                $"-passout pass:{Constants.CertPassword}"
+            );
 
             if (exitCode != 0)
             {
@@ -180,22 +203,47 @@ namespace Garry.Control4.Jailbreak.UI
                 return;
             }
 
-            //
-            // Get the text for the composer cacert-*.pem
-            //
-            log.WriteNormal($"Creating {Constants.ComposerCertName}\n");
-            var output = RunProcessGetOutput(Constants.OpenSslExe, "x509 -in \"Certs/public.pem\" -text");
-            System.IO.File.WriteAllText($"Certs/{Constants.ComposerCertName}", output);
+            var configFolder = $"{Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)}/Control4";
+            // These directories won't exist if Composer has not yet been opened.
+            if (!Directory.Exists(configFolder))
+            {
+                Directory.CreateDirectory(configFolder);
+            }
 
-            CopyFile(log, $"Certs/{Constants.ComposerCertName}", $"{configFolder}\\{Constants.ComposerCertName}");
-            CopyFile(log, "Certs/composer.p12", $"{configFolder}\\composer.p12");
+            if (!Directory.Exists($"{configFolder}/Composer"))
+            {
+                Directory.CreateDirectory($"{configFolder}/Composer");
+            }
+
+            CopyFile(log, $"{Constants.CertsFolder}/{Constants.ComposerCertName}",
+                $"{configFolder}/Composer/{Constants.ComposerCertName}");
+            CopyFile(log, $"{Constants.CertsFolder}/composer.p12", $"{configFolder}/Composer/composer.p12");
+
+            // Temporary workaround to allow upgrading to X4 without a dealer
+            // account, though the user must disconnect from the internet before
+            // opening Composer, or it will be regenerated.
+            WriteFile(log, $"{configFolder}/Composer/FeaturesConfiguration.json", @"{}");
+
+            // The first time opening Composer will stick you in a login loop
+            // without this file present.
+            if (!File.Exists($"{configFolder}/dealeraccount.xml"))
+            {
+                // This is just the file contents after entering username=no and password=way
+                WriteFile(log, $"{configFolder}/dealeraccount.xml", @"<?xml version=""1.0"" encoding=""utf-8""?>
+<DealerAccount>
+  <Username>no</Username>
+  <Employee>False</Employee>
+  <Password>+bJjU5zcsEI=</Password>
+  <UserHash>9390298f3fb0c5b160498935d79cb139aef28e1c47358b4bbba61862b9c26e59</UserHash>
+</DealerAccount>");
+            }
 
             log.WriteNormal("\n\n");
             log.WriteSuccess("Success - composer should be good for 30 days\n\n");
             log.WriteSuccess(
-                "Once it starts complaining that you had x days left to renew, just run this step again\n\n");
+                "Once it starts complaining that you have x days left to renew, just run this step again\n\n");
             log.WriteSuccess(
-                "You shouldn't need to patch your Director again unless you update to a new version or delete the Certs folder next to this exe.\n\n");
+                $"You shouldn't need to patch your Director again unless you update to a new version or delete the {Constants.CertsFolder} folder next to this exe.\n\n");
         }
 
         private static void CopyFile(LogWindow log, string a, string b)
@@ -206,12 +254,21 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteHighlight(b);
             log.WriteNormal("\n");
 
-            System.IO.File.Copy(a, b, true);
+            File.Copy(a, b, true);
+        }
+
+        private static void WriteFile(LogWindow log, string file, string content)
+        {
+            log.WriteNormal("Writing ");
+            log.WriteHighlight(file);
+            log.WriteNormal("\n");
+
+            File.WriteAllText(file, content);
         }
 
         private static int RunProcessPrintOutput(LogWindow log, string exe, string arguments)
         {
-            log.WriteNormal(System.IO.Path.GetFileName(exe));
+            log.WriteNormal(Path.GetFileName(exe));
             log.WriteNormal(" ");
             log.WriteHighlight(arguments);
             log.WriteNormal("\n");
@@ -222,7 +279,8 @@ namespace Garry.Control4.Jailbreak.UI
                 CreateNoWindow = true,
                 UseShellExecute = false,
                 RedirectStandardOutput = true,
-                RedirectStandardError = true
+                RedirectStandardError = true,
+                EnvironmentVariables = { ["OPENSSL_CONF"] = Path.GetFullPath(Constants.OpenSslConfig) }
             };
 
             var process = Process.Start(startInfo);
@@ -243,20 +301,6 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteNormal("\n");
 
             return process.ExitCode;
-        }
-
-        private static string RunProcessGetOutput(string exe, string arguments)
-        {
-            var startInfo = new ProcessStartInfo(exe, arguments)
-            {
-                CreateNoWindow = true,
-                UseShellExecute = false,
-                RedirectStandardOutput = true
-            };
-
-            var process = Process.Start(startInfo);
-
-            return process?.StandardOutput.ReadToEnd();
         }
     }
 }

@@ -9,6 +9,7 @@ namespace Garry.Control4.Jailbreak.UI
         private Certificates Certificates { get; }
         private Composer Composer { get; }
         private Director Director { get; }
+        private UartRecovery UartRecovery { get; }
 
         public DirectorPatch DirectorPatch { get; }
 
@@ -17,12 +18,17 @@ namespace Garry.Control4.Jailbreak.UI
         {
             InitializeComponent();
 
-            if (!System.IO.Directory.Exists("Certs"))
+            if (!System.IO.Directory.Exists(Constants.CertsFolder))
             {
-                System.IO.Directory.CreateDirectory("Certs");
+                System.IO.Directory.CreateDirectory(Constants.CertsFolder);
             }
 
-            System.IO.File.WriteAllBytes("Certs/openssl.cfg", Resources.openssl);
+            if (!System.IO.Directory.Exists(Constants.KeysFolder))
+            {
+                System.IO.Directory.CreateDirectory(Constants.KeysFolder);
+            }
+
+            System.IO.File.WriteAllBytes($"{Constants.CertsFolder}/openssl.cfg", Resources.openssl);
 
             Text += $@" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
 
@@ -44,6 +50,11 @@ namespace Garry.Control4.Jailbreak.UI
             TabControl.TabPages.Add("Director");
             DirectorPatch.Parent = TabControl.TabPages[2];
             DirectorPatch.Dock = DockStyle.Fill;
+            
+            UartRecovery = new UartRecovery(this);
+            TabControl.TabPages.Add("UART Recovery");
+            UartRecovery.Parent = TabControl.TabPages[3];
+            UartRecovery.Dock = DockStyle.Fill;
 
             CenterToScreen();
 
