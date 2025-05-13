@@ -60,7 +60,7 @@ namespace Garry.Control4.Jailbreak.UI
                 var defaultProxy = systemNet.Element("defaultProxy");
                 if (defaultProxy != null)
                 {
-                    log.WriteHighlight("Couldn't find the line - probably already patched??");
+                    log.WriteHighlight("The <defaultProxy> node already exists. The configuration appears to be already patched. No changes were made.");
                     return;
                 }
 
