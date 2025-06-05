@@ -49,5 +49,16 @@
         /// What version of Director/Composer we're aiming at
         /// </summary>
         public const string TargetDirectorVersion = @"4.0.0";
+
+        /// <summary>
+        /// The file path to the Windows Hosts file, typically used for mapping hostnames to IP addresses.
+        /// </summary>
+        public const string WindowsHostsFile = @"C:\Windows\System32\drivers\etc\hosts";
+
+        /// <summary>
+        /// Represents the host entry for Split.io to be added to the system's hosts file,
+        /// redirecting "split.io" and "sdk.split.io" to localhost.
+        /// </summary>
+        public const string BlockSplitIoHostsEntry = @"127.0.0.1  split.io sdk.split.io";
     }
 }

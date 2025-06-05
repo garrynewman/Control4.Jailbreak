@@ -64,7 +64,7 @@
             this.label7.Location = new System.Drawing.Point(32, 142);
             this.label7.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(932, 121);
+            this.label7.Size = new System.Drawing.Size(936, 121);
             this.label7.TabIndex = 17;
             this.label7.Text = "If you created a user we\'ll be able to patch the director with the new certificat" +
     "e.\r\n\r\nWe can work out the password to your director, just make sure the Address " +
@@ -114,7 +114,7 @@
             // labelIpAddress
             // 
             this.labelIpAddress.AutoSize = true;
-            this.labelIpAddress.Location = new System.Drawing.Point(34, 263);
+            this.labelIpAddress.Location = new System.Drawing.Point(32, 263);
             this.labelIpAddress.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.labelIpAddress.Name = "labelIpAddress";
             this.labelIpAddress.Size = new System.Drawing.Size(116, 25);
@@ -157,10 +157,10 @@
             // 
             this.label14.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label14.Location = new System.Drawing.Point(34, 544);
+            this.label14.Location = new System.Drawing.Point(32, 544);
             this.label14.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label14.Name = "label14";
-            this.label14.Size = new System.Drawing.Size(932, 137);
+            this.label14.Size = new System.Drawing.Size(936, 137);
             this.label14.TabIndex = 29;
             this.label14.Text = resources.GetString("label14.Text");
             // 
@@ -188,7 +188,7 @@
             // 
             // MacAddress
             // 
-            this.MacAddress.Location = new System.Drawing.Point(34, 375);
+            this.MacAddress.Location = new System.Drawing.Point(32, 375);
             this.MacAddress.Margin = new System.Windows.Forms.Padding(6);
             this.MacAddress.MaxLength = 17;
             this.MacAddress.Name = "MacAddress";
