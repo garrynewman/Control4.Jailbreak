@@ -117,4 +117,9 @@
   <resheader name="writer">
     <value>System.Resources.ResXResourceWriter, System.Windows.Forms, Version=4.0.0.0, Culture=neutral, PublicKeyToken=b77a5c561934e089</value>
   </resheader>
+  <data name="labelUartRecoveryHelpText.Text" xml:space="preserve">
+    <value>This process will re-enable password authentication, allowing you to proceed with the standard jailbreak process. If you can already patch your director successfully, this step is unnecessary.
+
+Ensure you are connected to the UART port on your Control4 controller and select the correct COM port from the dropdown menu below.</value>
+  </data>
 </root>

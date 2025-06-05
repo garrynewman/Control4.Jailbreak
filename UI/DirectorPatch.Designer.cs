@@ -34,13 +34,15 @@
             this.button4 = new System.Windows.Forms.Button();
             this.Password = new System.Windows.Forms.TextBox();
             this.Username = new System.Windows.Forms.TextBox();
-            this.Address = new System.Windows.Forms.TextBox();
-            this.label10 = new System.Windows.Forms.Label();
-            this.label11 = new System.Windows.Forms.Label();
-            this.label12 = new System.Windows.Forms.Label();
+            this.IpAddress = new System.Windows.Forms.TextBox();
+            this.labelIpAddress = new System.Windows.Forms.Label();
+            this.labelUsername = new System.Windows.Forms.Label();
+            this.labelPassword = new System.Windows.Forms.Label();
             this.label13 = new System.Windows.Forms.Label();
             this.label14 = new System.Windows.Forms.Label();
             this.button1 = new System.Windows.Forms.Button();
+            this.labelMacAddress = new System.Windows.Forms.Label();
+            this.MacAddress = new System.Windows.Forms.TextBox();
             this.SuspendLayout();
             // 
             // label6
@@ -48,9 +50,10 @@
             this.label6.AutoSize = true;
             this.label6.Font = new System.Drawing.Font("Microsoft YaHei", 16F, System.Drawing.FontStyle.Bold);
             this.label6.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label6.Location = new System.Drawing.Point(12, 16);
+            this.label6.Location = new System.Drawing.Point(24, 31);
+            this.label6.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label6.Name = "label6";
-            this.label6.Size = new System.Drawing.Size(276, 30);
+            this.label6.Size = new System.Drawing.Size(538, 57);
             this.label6.TabIndex = 16;
             this.label6.Text = "DIRECTOR CERTIFICATE";
             // 
@@ -58,9 +61,10 @@
             // 
             this.label7.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label7.Location = new System.Drawing.Point(16, 74);
+            this.label7.Location = new System.Drawing.Point(32, 142);
+            this.label7.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label7.Name = "label7";
-            this.label7.Size = new System.Drawing.Size(466, 63);
+            this.label7.Size = new System.Drawing.Size(936, 121);
             this.label7.TabIndex = 17;
             this.label7.Text = "If you created a user we\'ll be able to patch the director with the new certificat" +
     "e.\r\n\r\nWe can work out the password to your director, just make sure the Address " +
@@ -69,9 +73,10 @@
             // button4
             // 
             this.button4.Image = global::Garry.Control4.Jailbreak.Properties.Resources.cup_cake;
-            this.button4.Location = new System.Drawing.Point(297, 179);
+            this.button4.Location = new System.Drawing.Point(594, 344);
+            this.button4.Margin = new System.Windows.Forms.Padding(6);
             this.button4.Name = "button4";
-            this.button4.Size = new System.Drawing.Size(185, 34);
+            this.button4.Size = new System.Drawing.Size(370, 65);
             this.button4.TabIndex = 18;
             this.button4.Text = "Patch Director Certificates";
             this.button4.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
@@ -81,64 +86,70 @@
             // 
             // Password
             // 
-            this.Password.Location = new System.Drawing.Point(245, 153);
+            this.Password.Location = new System.Drawing.Point(490, 294);
+            this.Password.Margin = new System.Windows.Forms.Padding(6);
             this.Password.Name = "Password";
-            this.Password.Size = new System.Drawing.Size(237, 20);
+            this.Password.Size = new System.Drawing.Size(470, 31);
             this.Password.TabIndex = 22;
-            this.Password.Text = "jailbreak";
             // 
             // Username
             // 
-            this.Username.Location = new System.Drawing.Point(152, 153);
+            this.Username.Location = new System.Drawing.Point(304, 294);
+            this.Username.Margin = new System.Windows.Forms.Padding(6);
             this.Username.Name = "Username";
-            this.Username.Size = new System.Drawing.Size(87, 20);
+            this.Username.Size = new System.Drawing.Size(170, 31);
             this.Username.TabIndex = 23;
             this.Username.Text = "root";
             // 
-            // Address
+            // IpAddress
             // 
-            this.Address.Location = new System.Drawing.Point(16, 153);
-            this.Address.Name = "Address";
-            this.Address.Size = new System.Drawing.Size(130, 20);
-            this.Address.TabIndex = 24;
-            this.Address.Text = "127.0.0.1";
-            this.Address.TextChanged += new System.EventHandler(this.OnAddressChanged);
+            this.IpAddress.Location = new System.Drawing.Point(32, 294);
+            this.IpAddress.Margin = new System.Windows.Forms.Padding(6);
+            this.IpAddress.Name = "IpAddress";
+            this.IpAddress.Size = new System.Drawing.Size(256, 31);
+            this.IpAddress.TabIndex = 24;
+            this.IpAddress.Text = "127.0.0.1";
+            this.IpAddress.TextChanged += new System.EventHandler(this.OnIpAddressChanged);
             // 
-            // label10
+            // labelIpAddress
             // 
-            this.label10.AutoSize = true;
-            this.label10.Location = new System.Drawing.Point(17, 137);
-            this.label10.Name = "label10";
-            this.label10.Size = new System.Drawing.Size(45, 13);
-            this.label10.TabIndex = 25;
-            this.label10.Text = "Address";
+            this.labelIpAddress.AutoSize = true;
+            this.labelIpAddress.Location = new System.Drawing.Point(32, 263);
+            this.labelIpAddress.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
+            this.labelIpAddress.Name = "labelIpAddress";
+            this.labelIpAddress.Size = new System.Drawing.Size(116, 25);
+            this.labelIpAddress.TabIndex = 25;
+            this.labelIpAddress.Text = "IP Address";
             // 
-            // label11
+            // labelUsername
             // 
-            this.label11.AutoSize = true;
-            this.label11.Location = new System.Drawing.Point(149, 137);
-            this.label11.Name = "label11";
-            this.label11.Size = new System.Drawing.Size(55, 13);
-            this.label11.TabIndex = 26;
-            this.label11.Text = "Username";
+            this.labelUsername.AutoSize = true;
+            this.labelUsername.Location = new System.Drawing.Point(298, 263);
+            this.labelUsername.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
+            this.labelUsername.Name = "labelUsername";
+            this.labelUsername.Size = new System.Drawing.Size(110, 25);
+            this.labelUsername.TabIndex = 26;
+            this.labelUsername.Text = "Username";
             // 
-            // label12
+            // labelPassword
             // 
-            this.label12.AutoSize = true;
-            this.label12.Location = new System.Drawing.Point(242, 137);
-            this.label12.Name = "label12";
-            this.label12.Size = new System.Drawing.Size(53, 13);
-            this.label12.TabIndex = 27;
-            this.label12.Text = "Password";
+            this.labelPassword.AutoSize = true;
+            this.labelPassword.Location = new System.Drawing.Point(484, 263);
+            this.labelPassword.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
+            this.labelPassword.Name = "labelPassword";
+            this.labelPassword.Size = new System.Drawing.Size(218, 25);
+            this.labelPassword.TabIndex = 27;
+            this.labelPassword.Text = "Password (OS3 Only)";
             // 
             // label13
             // 
             this.label13.AutoSize = true;
             this.label13.Font = new System.Drawing.Font("Microsoft YaHei", 16F, System.Drawing.FontStyle.Bold);
             this.label13.ForeColor = System.Drawing.SystemColors.Highlight;
-            this.label13.Location = new System.Drawing.Point(12, 243);
+            this.label13.Location = new System.Drawing.Point(24, 467);
+            this.label13.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label13.Name = "label13";
-            this.label13.Size = new System.Drawing.Size(235, 30);
+            this.label13.Size = new System.Drawing.Size(459, 57);
             this.label13.TabIndex = 28;
             this.label13.Text = "RESTART DIRECTOR";
             // 
@@ -146,42 +157,67 @@
             // 
             this.label14.Anchor = ((System.Windows.Forms.AnchorStyles)(((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Left) 
             | System.Windows.Forms.AnchorStyles.Right)));
-            this.label14.Location = new System.Drawing.Point(17, 283);
+            this.label14.Location = new System.Drawing.Point(32, 544);
+            this.label14.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
             this.label14.Name = "label14";
-            this.label14.Size = new System.Drawing.Size(466, 71);
+            this.label14.Size = new System.Drawing.Size(936, 137);
             this.label14.TabIndex = 29;
             this.label14.Text = resources.GetString("label14.Text");
             // 
             // button1
             // 
-            this.button1.Location = new System.Drawing.Point(297, 380);
+            this.button1.Location = new System.Drawing.Point(594, 731);
+            this.button1.Margin = new System.Windows.Forms.Padding(6);
             this.button1.Name = "button1";
-            this.button1.Size = new System.Drawing.Size(185, 34);
+            this.button1.Size = new System.Drawing.Size(370, 65);
             this.button1.TabIndex = 30;
             this.button1.Text = "Reboot Director";
             this.button1.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
             this.button1.UseVisualStyleBackColor = true;
             this.button1.Click += new System.EventHandler(this.RebootDirector);
             // 
+            // labelMacAddress
+            // 
+            this.labelMacAddress.AutoSize = true;
+            this.labelMacAddress.Location = new System.Drawing.Point(32, 344);
+            this.labelMacAddress.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
+            this.labelMacAddress.Name = "labelMacAddress";
+            this.labelMacAddress.Size = new System.Drawing.Size(144, 25);
+            this.labelMacAddress.TabIndex = 31;
+            this.labelMacAddress.Text = "MAC Address";
+            // 
+            // MacAddress
+            // 
+            this.MacAddress.Location = new System.Drawing.Point(32, 375);
+            this.MacAddress.Margin = new System.Windows.Forms.Padding(6);
+            this.MacAddress.MaxLength = 17;
+            this.MacAddress.Name = "MacAddress";
+            this.MacAddress.Size = new System.Drawing.Size(256, 31);
+            this.MacAddress.TabIndex = 32;
+            this.MacAddress.TextChanged += new System.EventHandler(this.OnMacAddressChanged);
+            // 
             // DirectorPatch
             // 
-            this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
+            this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
             this.BackColor = System.Drawing.SystemColors.Window;
+            this.Controls.Add(this.MacAddress);
+            this.Controls.Add(this.labelMacAddress);
             this.Controls.Add(this.button1);
             this.Controls.Add(this.label14);
             this.Controls.Add(this.label13);
-            this.Controls.Add(this.label12);
-            this.Controls.Add(this.label11);
-            this.Controls.Add(this.label10);
-            this.Controls.Add(this.Address);
+            this.Controls.Add(this.labelPassword);
+            this.Controls.Add(this.labelUsername);
+            this.Controls.Add(this.labelIpAddress);
+            this.Controls.Add(this.IpAddress);
             this.Controls.Add(this.Username);
             this.Controls.Add(this.Password);
             this.Controls.Add(this.button4);
             this.Controls.Add(this.label7);
             this.Controls.Add(this.label6);
+            this.Margin = new System.Windows.Forms.Padding(6);
             this.Name = "DirectorPatch";
-            this.Size = new System.Drawing.Size(500, 443);
+            this.Size = new System.Drawing.Size(1000, 852);
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -193,12 +229,14 @@
         private System.Windows.Forms.Button button4;
         private System.Windows.Forms.TextBox Password;
         private System.Windows.Forms.TextBox Username;
-        private System.Windows.Forms.Label label10;
-        private System.Windows.Forms.Label label11;
-        private System.Windows.Forms.Label label12;
-        public System.Windows.Forms.TextBox Address;
+        private System.Windows.Forms.Label labelIpAddress;
+        private System.Windows.Forms.Label labelUsername;
+        private System.Windows.Forms.Label labelPassword;
+        public System.Windows.Forms.TextBox IpAddress;
         private System.Windows.Forms.Label label13;
         private System.Windows.Forms.Label label14;
         private System.Windows.Forms.Button button1;
+        private System.Windows.Forms.Label labelMacAddress;
+        public System.Windows.Forms.TextBox MacAddress;
     }
 }
