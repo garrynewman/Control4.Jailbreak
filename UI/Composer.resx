@@ -120,4 +120,7 @@
   <data name="label3.Text" xml:space="preserve">
     <value>We can stop composer checking with Control4 to see if you're a dealer by adding some stuff to the ComposerPro.exe.config file. Without this you'll have to disconnect your internet every time you start Composer.</value>
   </data>
+  <data name="label8.Text" xml:space="preserve">
+    <value>Your Composer needs to have a certificate matching the one on your Director in order to connect. So lets copy the certificate we generated into your composer config folder so it does. Additionally, starting in v4.0.0, only dealers are able to upgrade controllers to X4, however by blocking your computer from accessing split.io then you can perform the upgrade yourself. Check the box below to block or unblock it.</value>
+  </data>
 </root>

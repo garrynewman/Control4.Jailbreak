@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Windows.Forms;
 
 namespace Garry.Control4.Jailbreak.UI
@@ -14,7 +15,24 @@ namespace Garry.Control4.Jailbreak.UI
             _mainWindow = mainWindow;
 
             InitializeComponent();
+            checkBoxBlockSplitIo.CheckedChanged += checkBoxBlockSplitIo_CheckedChanged;
+            Load += Composer_Load;
+
         }
+        
+        private void Composer_Load(object sender, EventArgs e)
+        {
+            // Load the checkbox state from the application settings
+            checkBoxBlockSplitIo.Checked = Properties.Settings.Default.BlockSplitIoChecked;
+        }
+        
+        private void checkBoxBlockSplitIo_CheckedChanged(object sender, EventArgs e)
+        {
+            // Save the checkbox state to the application settings
+            Properties.Settings.Default.BlockSplitIoChecked = checkBoxBlockSplitIo.Checked;
+            Properties.Settings.Default.Save();
+        }
+
 
         private void PatchComposer(object sender, EventArgs eventargs)
         {
@@ -109,7 +127,7 @@ namespace Garry.Control4.Jailbreak.UI
             var log = new LogWindow(_mainWindow, "Update Composer Certificates");
             try
             {
-                UpdateComposerCertificate(log);
+                UpdateComposerCertificate(log, checkBoxBlockSplitIo.Checked);
             }
             catch (Exception ex)
             {
@@ -118,7 +136,7 @@ namespace Garry.Control4.Jailbreak.UI
         }
 
 
-        private static void UpdateComposerCertificate(LogWindow log)
+        private static void UpdateComposerCertificate(LogWindow log, bool blockSplitIo = false)
         {
             if (!File.Exists(Constants.OpenSslExe))
             {
@@ -129,6 +147,11 @@ namespace Garry.Control4.Jailbreak.UI
             if (!File.Exists(Constants.OpenSslConfig))
             {
                 log.WriteError($"Couldn't find {Constants.OpenSslConfig} - do you have composer installed?");
+                return;
+            }
+            if (Process.GetProcessesByName("ComposerPro").Length > 0)
+            {
+                log.WriteError("ComposerPro.exe is currently running. Please close Composer and try again.");
                 return;
             }
 
@@ -219,10 +242,19 @@ namespace Garry.Control4.Jailbreak.UI
                 $"{configFolder}/Composer/{Constants.ComposerCertName}");
             CopyFile(log, $"{Constants.CertsFolder}/composer.p12", $"{configFolder}/Composer/composer.p12");
 
-            // Temporary workaround to allow upgrading to X4 without a dealer
-            // account, though the user must disconnect from the internet before
-            // opening Composer, or it will be regenerated.
+            // This section is a temporary workaround to allow upgrading to X4 without a valid
+            // dealer account. Essentially all that is involved is to block split.io (cloud service
+            // for experiment rollouts) and delete the features cache file. The user will then be
+            // opted into the "control" which does not require a dealer to upgrade.
             WriteFile(log, $"{configFolder}/Composer/FeaturesConfiguration.json", @"{}");
+            if (blockSplitIo)
+            {
+                AddLineToFile(log, Constants.WindowsHostsFile, Constants.BlockSplitIoHostsEntry);
+            }
+            else
+            {
+                RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockSplitIoHostsEntry);
+            }
 
             // The first time opening Composer will stick you in a login loop
             // without this file present.
@@ -264,6 +296,51 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteNormal("\n");
 
             File.WriteAllText(file, content);
+        }
+
+        private static void RemoveLineFromFile(LogWindow log, string file, string line, bool ignoreWhitespace = true)
+        {
+            log.WriteNormal("Removing line '");
+            log.WriteTrace(line);
+            log.WriteNormal("' from ");
+            log.WriteHighlight(file);
+            log.WriteNormal("\n");
+
+            if (!File.Exists(file))
+            {
+                return;
+            }
+            var lines = File.ReadAllLines(file);
+            var newLines = lines.Where(s => ignoreWhitespace 
+                ? s.Trim() != line.Trim() 
+                : s != line).ToArray();
+                
+            if (newLines.Length != lines.Length)
+            {
+                File.WriteAllLines(file, newLines);
+            }
+        }
+                
+        private static void AddLineToFile(LogWindow log, string file, string line, bool ignoreWhitespace = true)
+        {
+            log.WriteNormal("Adding line '");
+            log.WriteTrace(line);
+            log.WriteNormal("' to ");
+            log.WriteHighlight(file);
+            log.WriteNormal("\n");
+
+            if (File.Exists(file))
+            {
+                var lines = File.ReadAllLines(file);
+                if (!lines.Select(s => ignoreWhitespace ? s.Trim() : s).Contains(ignoreWhitespace ? line.Trim() : line))
+                {
+                    File.AppendAllText(file, line.TrimEnd() + Environment.NewLine);
+                }
+            }
+            else
+            {
+                File.WriteAllText(file, line.TrimEnd() + Environment.NewLine);
+            }
         }
 
         private static int RunProcessPrintOutput(LogWindow log, string exe, string arguments)
