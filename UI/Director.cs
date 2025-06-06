@@ -1,4 +1,4 @@
-﻿namespace Garry.Control4.Jailbreak.UI
+namespace Garry.Control4.Jailbreak.UI
 {
     public class Director
     {
@@ -29,7 +29,7 @@
         {
             try
             {
-                _mainWindow.DirectorPatch.Address.Text = connection.EndPoint.Address.ToString();
+                _mainWindow.DirectorPatch.IpAddress.Text = connection.EndPoint.Address.ToString();
                 _mainWindow.SetStatusRight($"Connected to {connection.EndPoint.Address}");
                 return true;
             }
