@@ -490,7 +490,7 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
-        private static string GetDirectorRootPassword(string macAddress)
+        public static string GetDirectorRootPassword(string macAddress)
         {
             if (string.IsNullOrEmpty(macAddress) || macAddress.Length != 12)
             {
