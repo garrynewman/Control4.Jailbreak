@@ -6,10 +6,10 @@ namespace Garry.Control4.Jailbreak.UI
 {
     public partial class LogWindow : Form
     {
-        public LogWindow(Form mainWindow)
+        public LogWindow(Form mainWindow, string title = "LogWindow")
         {
             Owner = mainWindow;
-            InitializeComponent();
+            InitializeComponent(title);
 
             CenterToParent();
             Show();

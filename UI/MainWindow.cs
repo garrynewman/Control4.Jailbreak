@@ -17,12 +17,17 @@ namespace Garry.Control4.Jailbreak.UI
         {
             InitializeComponent();
 
-            if (!System.IO.Directory.Exists("Certs"))
+            if (!System.IO.Directory.Exists(Constants.CertsFolder))
             {
-                System.IO.Directory.CreateDirectory("Certs");
+                System.IO.Directory.CreateDirectory(Constants.CertsFolder);
             }
 
-            System.IO.File.WriteAllBytes("Certs/openssl.cfg", Resources.openssl);
+            if (!System.IO.Directory.Exists(Constants.KeysFolder))
+            {
+                System.IO.Directory.CreateDirectory(Constants.KeysFolder);
+            }
+
+            System.IO.File.WriteAllBytes($"{Constants.CertsFolder}/openssl.cfg", Resources.openssl);
 
             Text += $@" - v{Constants.Version} - For C4 v{Constants.TargetDirectorVersion}";
 
