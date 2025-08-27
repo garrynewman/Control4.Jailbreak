@@ -37,6 +37,7 @@
     <DefineConstants>DEBUG;TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <PathMap>$(MSBuildProjectDirectory)=Control4.Jailbreak</PathMap>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <PlatformTarget>AnyCPU</PlatformTarget>
@@ -46,6 +47,7 @@
     <DefineConstants>TRACE</DefineConstants>
     <ErrorReport>prompt</ErrorReport>
     <WarningLevel>4</WarningLevel>
+    <PathMap>$(MSBuildProjectDirectory)=Control4.Jailbreak</PathMap>
   </PropertyGroup>
   <PropertyGroup />
   <PropertyGroup>
@@ -76,6 +78,7 @@
     <Reference Include="System.Drawing" />
     <Reference Include="System.Windows.Forms" />
     <Reference Include="System.Xml" />
+    <Reference Include="System.Web.Extensions" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Constants.cs" />
@@ -110,6 +113,9 @@
     </Compile>
     <Compile Include="UI\LogWindow.Designer.cs">
       <DependentUpon>LogWindow.cs</DependentUpon>
+    </Compile>
+    <Compile Include="UI\LoginDialog.cs">
+      <SubType>Form</SubType>
     </Compile>
     <Compile Include="UI\MainWindow.cs">
       <SubType>Form</SubType>
