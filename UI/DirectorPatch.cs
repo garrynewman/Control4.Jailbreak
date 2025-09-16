@@ -1,17 +1,17 @@
+using Renci.SshNet;
+using Renci.SshNet.Common;
 using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.IO;
 using System.Linq;
-using Renci.SshNet;
-using System.Runtime.InteropServices;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Renci.SshNet.Common;
+using System.Threading.Tasks;
 using System.Web.Script.Serialization;
+using System.Windows.Forms;
 
 namespace Garry.Control4.Jailbreak.UI
 {
@@ -545,6 +545,7 @@ namespace Garry.Control4.Jailbreak.UI
 
                 // Parse JSON to find driver ID
                 var serializer = new JavaScriptSerializer();
+                serializer.MaxJsonLength = int.MaxValue;
                 if (serializer.DeserializeObject(content) is object[] items)
                 {
                     foreach (var item in items)
