@@ -1,22 +1,24 @@
-﻿using System;
+using Renci.SshNet;
+using Renci.SshNet.Common;
+using System;
 using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using System.IO;
 using System.Linq;
-using Renci.SshNet;
-using System.Runtime.InteropServices;
 using System.Net;
+using System.Runtime.InteropServices;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
-using Renci.SshNet.Common;
+using System.Threading.Tasks;
+using System.Web.Script.Serialization;
+using System.Windows.Forms;
 
 namespace Garry.Control4.Jailbreak.UI
 {
     public partial class DirectorPatch : UserControl
     {
         private readonly MainWindow _mainWindow;
+        private string _cachedJwtToken;
 
         public DirectorPatch(MainWindow mainWindow)
         {
@@ -84,19 +86,41 @@ namespace Garry.Control4.Jailbreak.UI
             if (string.IsNullOrEmpty(macAddress))
             {
                 log.WriteError("failed\n\n");
-                log.WriteError(
-                    "Please check your ip and password and try again, or enter the MAC address manually.\n\n");
-                log.WriteHighlight(
-                    "If you are attempting to patch a controller running X4, password authentication is " +
-                    "disabled. You must downgrade to OS3 and jailbreak prior to upgrading to X4. This will " +
-                    "generate and store the necessary keys to connect later without a password.\n");
-                return false;
+                try
+                {
+                    log.WriteNormal("Attempting to restore SSH password authentication... ");
+                    ApplySshRestoreExploit(GetWritableDriverId());
+                    log.WriteSuccess("done\n");
+
+                    log.WriteNormal("Reloading SSH service... ");
+                    ReloadSshService();
+                    log.WriteSuccess("done\n");
+
+                    log.WriteNormal("Waiting for SSH to reload... ");
+                    System.Threading.Thread.Sleep(1000);
+                    log.WriteSuccess("done\n");
+
+                    log.WriteNormal("Retrieving MAC address from controller API... ");
+                    macAddress = GetDirectorMacAddressUsingApi();
+                }
+                catch (Exception ex)
+                {
+                    log.WriteError("failed\n\n");
+                    log.WriteError(ex);
+                    log.WriteError(
+                        "\n\nPlease check your ip and password and try again, or enter the MAC address manually.\n\n");
+                    return false;
+                }
             }
 
             log.WriteSuccess($"done - got {macAddress}\n\n");
             if (MacAddress.Text != macAddress)
             {
-                Invoke((Action)(() => { MacAddress.Text = macAddress; }));
+                Invoke((Action)(() =>
+                {
+                    MacAddress.Text = macAddress;
+                    WorkoutPassword();
+                }));
             }
 
             var localKeysFolder = $"{Constants.KeysFolder}/{macAddress}";
@@ -218,14 +242,13 @@ namespace Garry.Control4.Jailbreak.UI
 
             if (keysDownloaded)
             {
-                log.WriteHighlight("\n-- ATTENTION ---\n" +
-                                   $"If you lose the '{Constants.KeysFolder}' folder you will " +
-                                   "lose access to your system if it is running X4! The only " +
-                                   "path to recovery is to downgrade to OS3 and jailbreak prior " +
-                                   "to upgrading back to X4.\n\n" +
-                                   "It is recommended that you backup this folder somewhere " +
-                                   "private and safe to ensure this does not happen.\n" +
-                                   "----------------\n");
+                log.WriteHighlight(
+                    $"\n-- ATTENTION ---\nIf you lose the '{Constants.KeysFolder}' folder, " +
+                    "connecting to X4 systems becomes more difficult! While SSH password " +
+                    "authentication can currently be restored using customer credentials, this " +
+                    "capability may not always be available in future firmware versions.\n\n" +
+                    "Back up this folder somewhere safe to avoid the hassle later.\n" +
+                    "----------------\n");
             }
 
             log.WriteNormal("\n");
@@ -344,6 +367,7 @@ namespace Garry.Control4.Jailbreak.UI
                 ssh.RunCommand($"mkdir -p {remoteDirectory}");
                 ssh.Disconnect();
             }
+
             using (var stream = new MemoryStream())
             {
                 using (var writer = new StreamWriter(stream))
@@ -385,28 +409,30 @@ namespace Garry.Control4.Jailbreak.UI
 
         private void OnMacAddressChanged(object sender, EventArgs e)
         {
-            _ = WorkoutPassword();
+            WorkoutPassword();
         }
 
-        private async Task WorkoutPassword()
+        private void WorkoutPassword()
         {
             var macAddress = MacAddress.Text;
+            var password = GetDirectorRootPassword(macAddress);
 
-            await Task.Run(() =>
+            void UpdatePassword()
+            {
+                if (MacAddress.Text == macAddress)
                 {
-                    var password = GetDirectorRootPassword(macAddress);
-                    if (!string.IsNullOrEmpty(password))
-                    {
-                        Invoke((Action)(() =>
-                        {
-                            if (MacAddress.Text == macAddress)
-                            {
-                                Password.Text = password;
-                            }
-                        }));
-                    }
+                    Password.Text = password;
                 }
-            );
+            }
+
+            if (InvokeRequired)
+            {
+                Invoke((Action)UpdatePassword);
+            }
+            else
+            {
+                UpdatePassword();
+            }
         }
 
         private string GetDirectorMacAddressUsingSsh()
@@ -452,13 +478,6 @@ namespace Garry.Control4.Jailbreak.UI
                 {
                     // ignored
                 }
-                finally
-                {
-                    if (client.IsConnected)
-                    {
-                        client.Disconnect();
-                    } // ReSharper disable InconsistentNaming
-                }
             }
 
             return null;
@@ -501,6 +520,209 @@ namespace Garry.Control4.Jailbreak.UI
             return Convert.ToBase64String(
                 new Rfc2898DeriveBytes(macAddress, salt, macAddress.Length * 397, HashAlgorithmName.SHA384)
                     .GetBytes(33));
+        }
+
+        private static System.Net.Http.HttpClient CreateHttpClient()
+        {
+            var handler = new System.Net.Http.HttpClientHandler
+            {
+                ServerCertificateCustomValidationCallback = (sender, cert, chain, sslPolicyErrors) => true
+            };
+            return new System.Net.Http.HttpClient(handler);
+        }
+
+        private string GetWritableDriverId()
+        {
+            using (var client = CreateHttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+
+                var response = client.GetAsync($"https://{IpAddress.Text}:443/api/v1/items").Result;
+                response.EnsureSuccessStatusCode();
+
+                var content = response.Content.ReadAsStringAsync().Result;
+
+                // Parse JSON to find driver ID
+                var serializer = new JavaScriptSerializer();
+                serializer.MaxJsonLength = int.MaxValue;
+                if (serializer.DeserializeObject(content) is object[] items)
+                {
+                    foreach (var item in items)
+                    {
+                        if (item is Dictionary<string, object> itemDict &&
+                            itemDict.TryGetValue("name", out var nameObj))
+                        {
+                            var name = nameObj.ToString();
+                            if (name == "Data Analytics Agent" || name == "Stations")
+                            {
+                                if (itemDict.TryGetValue("id", out var idObj))
+                                {
+                                    return idObj.ToString();
+                                }
+                            }
+                        }
+                    }
+                }
+
+                throw new Exception("No writable driver found in project!");
+            }
+        }
+
+        private void ApplySshRestoreExploit(string driverId)
+        {
+            const string luaExploit = @"-- Only modify sshd_config to enable password authentication
+local ssh_path = '/etc/ssh/sshd_config'
+
+-- Read & patch sshd_config to enable password authentication
+local ssh_lines = {}
+for line in io.lines(ssh_path) do
+  if line:match('^%s*PasswordAuthentication%s+no') then
+    ssh_lines[#ssh_lines+1] = 'PasswordAuthentication yes'
+  else
+    ssh_lines[#ssh_lines+1] = line
+  end
+end
+
+-- Write back sshd_config
+local f = assert(io.open(ssh_path, 'w'))
+for _, l in ipairs(ssh_lines) do
+  f:write(l, '\n')
+end
+f:close()
+";
+
+            using (var client = CreateHttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+
+                var serializer = new JavaScriptSerializer();
+                var commandData = new
+                {
+                    command = "LUA_COMMANDS",
+                    async = false,
+                    tParams = new
+                    {
+                        COMMANDS = luaExploit
+                    }
+                };
+                var json = serializer.Serialize(commandData);
+                var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = client
+                    .PostAsync($"https://{IpAddress.Text}:443/api/v1/items/{driverId}/commands", content).Result;
+                response.EnsureSuccessStatusCode();
+            }
+        }
+
+        private void ReloadSshService()
+        {
+            using (var client = CreateHttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+
+                var response = client
+                    .GetAsync($"https://{IpAddress.Text}:443/api/v1/sysman/ssh?command=pkill%20-HUP%20sshd").Result;
+                response.EnsureSuccessStatusCode();
+            }
+        }
+
+        private string GetDirectorMacAddressUsingApi()
+        {
+            using (var client = CreateHttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+
+                var response = client.GetAsync($"https://{IpAddress.Text}:443/api/v1/platform_status").Result;
+                response.EnsureSuccessStatusCode();
+                var content = response.Content.ReadAsStringAsync().Result;
+
+                var serializer = new JavaScriptSerializer();
+                if (serializer.DeserializeObject(content) is Dictionary<string, object> data &&
+                    data.TryGetValue("directorMAC", out var macObj))
+                {
+                    var macAddress = macObj.ToString().Replace(":", "").ToUpper();
+                    if (macAddress.Length == 12)
+                    {
+                        return macAddress;
+                    }
+                }
+            }
+
+            throw new Exception("Failed to get director MAC address from API response");
+        }
+
+        private string GetJwtToken()
+        {
+            // Return cached token if we already have one
+            if (!string.IsNullOrEmpty(_cachedJwtToken))
+            {
+                return _cachedJwtToken;
+            }
+
+            // Show login dialog for customer.control4.com credentials
+            string customerEmail = null;
+            string customerPassword = null;
+
+            void ShowLoginDialog()
+            {
+                using (var loginDialog = new LoginDialog())
+                {
+                    if (loginDialog.ShowDialog(FindForm()) == DialogResult.OK)
+                    {
+                        customerEmail = loginDialog.Username;
+                        customerPassword = loginDialog.Password;
+                    }
+                }
+            }
+
+            if (InvokeRequired)
+            {
+                Invoke((Action)ShowLoginDialog);
+            }
+            else
+            {
+                ShowLoginDialog();
+            }
+
+            if (string.IsNullOrEmpty(customerEmail) || string.IsNullOrEmpty(customerPassword))
+            {
+                throw new Exception("No customer credentials provided!");
+            }
+
+            using (var client = CreateHttpClient())
+            {
+                client.DefaultRequestHeaders.Add("Accept", "application/json");
+
+                var serializer = new JavaScriptSerializer();
+                var requestData = new
+                {
+                    applicationkey = "78f6791373d61bea49fdb9fb8897f1f3af193f11",
+                    env = "Prod",
+                    email = customerEmail,
+                    pwd = customerPassword,
+                    dev = false
+                };
+                var json = serializer.Serialize(requestData);
+                var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
+
+                var response = client.PostAsync($"https://{IpAddress.Text}:443/api/v1/jwt", content).Result;
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = response.Content.ReadAsStringAsync().Result;
+
+                if (serializer.DeserializeObject(responseContent) is Dictionary<string, object> responseData &&
+                    responseData.TryGetValue("token", out var value))
+                {
+                    _cachedJwtToken = value.ToString();
+                    return _cachedJwtToken;
+                }
+
+                throw new Exception("Invalid credentials provided!");
+            }
         }
 
         private void RebootDirector(object sender, EventArgs e)

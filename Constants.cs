@@ -48,7 +48,7 @@
         /// <summary>
         /// What version of Director/Composer we're aiming at
         /// </summary>
-        public const string TargetDirectorVersion = @"4.0.0";
+        public const string TargetDirectorVersion = @"3.4.3.741643";
 
         /// <summary>
         /// The file path to the Windows Hosts file, typically used for mapping hostnames to IP addresses.
