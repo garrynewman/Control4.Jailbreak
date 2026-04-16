@@ -23,6 +23,7 @@ namespace Garry.Control4.Jailbreak.UI
         private string _cachedJwtToken;
         private bool _loading;
         private string _directorVersion;
+        private string _controllerCommonName;
         private string _lastCheckedIp;
         private readonly Timer _connectionTimer = new Timer { Interval = 10000 };
         private readonly Timer _debounceTimer = new Timer { Interval = 800 };
@@ -202,11 +203,16 @@ namespace Garry.Control4.Jailbreak.UI
                 if (!GenerateComposerCert(log))
                     return;
 
-                // 5. Patch ComposerPro.exe.config (idempotent)
+                // 5. Ensure MQTT JWT signing keypair exists (OS 4.2+)
+                log.WriteHeader("JWT SIGNING KEYPAIR");
+                if (!EnsureJwtSigningKeyPair(log))
+                    return;
+
+                // 6. Patch ComposerPro.exe.config (idempotent)
                 log.WriteHeader("PATCH CONFIG");
                 PatchConfigFile(log);
 
-                // 6-10. Deploy files + settings
+                // 7-11. Deploy files + settings
                 log.WriteHeader("DEPLOY FILES");
 
                 var configFolder = GetComposerConfigFolder();
@@ -215,6 +221,7 @@ namespace Garry.Control4.Jailbreak.UI
                 UpdateUpdateManagerSettings(log, configFolder);
                 ConfigureSplitIoBlock(log, checkBoxBlockSplitIo.Checked);
                 EnsureDealerAccount(log, configFolder);
+                WriteLicenseFile(log, configFolder);
 
                 // 11. Patch Director (SSH)
                 log.WriteHeader("PATCH DIRECTOR");
@@ -231,6 +238,11 @@ namespace Garry.Control4.Jailbreak.UI
                     log.WriteNormal("\nLocal Composer patching succeeded. Run the jailbreak again to retry director patching.\n");
                     return;
                 }
+
+                // Write MQTT JWT cache (OS 4.2+). Harmless on earlier OS — Composer only
+                // consults this cache when the controller advertises SupportsMqtt.
+                log.WriteHeader("JWT CACHE");
+                WriteJwtCache(log, configFolder, _controllerCommonName);
 
                 // 12. Reboot Director if cert chains were modified or a previous reboot is pending
                 if (directorModified)
@@ -512,6 +524,47 @@ namespace Garry.Control4.Jailbreak.UI
         }
 
         // -------------------------------------------------------------------
+        // JWT signing keypair — used to forge MQTT auth tokens on OS 4.2+
+        // -------------------------------------------------------------------
+
+        private bool EnsureJwtSigningKeyPair(LogWindow log)
+        {
+            var keyPath = $"{Constants.CertsFolder}/jailbreak_api.key";
+            var pemPath = $"{Constants.CertsFolder}/jailbreak_api.pem";
+
+            if (File.Exists(keyPath) && File.Exists(pemPath))
+            {
+                log.WriteTrace("JWT signing keypair already exists — skipping.\n");
+                return true;
+            }
+
+            log.WriteNormal("Generating JWT signing private key...\n");
+            var exitCode = RunProcessPrintOutput(log, OpenSslExe,
+                $"genrsa -out \"{keyPath}\" 2048");
+            if (exitCode != 0)
+            {
+                log.WriteError("Key generation failed.\n");
+                return false;
+            }
+
+            log.WriteNormal("Generating JWT signing certificate...\n");
+            exitCode = RunProcessPrintOutput(log, OpenSslExe,
+                "req -new -x509 " +
+                $"-key \"{keyPath}\" " +
+                $"-out \"{pemPath}\" " +
+                "-days 36500 " +
+                "-subj \"/C=US/ST=Utah/L=Draper/O=Control4 Corporation/CN=composerexpress_auth/emailAddress=pki@control4.com\"");
+            if (exitCode != 0)
+            {
+                log.WriteError("Certificate generation failed.\n");
+                return false;
+            }
+
+            log.WriteSuccess("JWT signing keypair generated.\n");
+            return true;
+        }
+
+        // -------------------------------------------------------------------
         // Config file patching (dead proxy + bypasslist)
         // -------------------------------------------------------------------
 
@@ -656,6 +709,26 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
+        private static void WriteLicenseFile(LogWindow log, string configFolder)
+        {
+            // Composer 2026.x aborts at startup if this file is missing.
+            // Contents aren't validated when OnlineServicesAvailable=false — existence is enough.
+            var path = $"{configFolder}/Composer/license.xml";
+            if (File.Exists(path))
+            {
+                log.WriteTrace("license.xml already exists\n");
+                return;
+            }
+            WriteFile(log, path, @"<?xml version=""1.0"" encoding=""utf-8""?>
+<License>
+  <Name>Composer Pro</Name>
+  <Code>ProLicense</Code>
+  <Expiration>2099-01-01</Expiration>
+  <Status>Active</Status>
+  <Purchased>2024-01-01</Purchased>
+</License>");
+        }
+
         private static void EnsureDealerAccount(LogWindow log, string configFolder)
         {
             log.WriteNormal("Checking dealer account... ");
@@ -777,6 +850,8 @@ namespace Garry.Control4.Jailbreak.UI
                 }
                 log.WriteSuccess("connected\n");
 
+                _controllerCommonName = FetchControllerCommonName(scp);
+
                 SyncControllerClock(log, scp);
 
                 if (DownloadRootDeviceSshKeys(log, scp, localKeysFolder, warnings))
@@ -791,6 +866,8 @@ namespace Garry.Control4.Jailbreak.UI
                 anyModified |= PatchRemoteCertChain(log, scp, "/etc/openvpn/clientca-prod.pem", localCert);
                 anyModified |= PatchRemoteCertChain(log, scp, "/opt/control4/etc/ssl/certs/clientca-prod.pem", localCert);
                 anyModified |= PatchRemoteCertChain(log, scp, "/etc/mosquitto/certs/ca-chain.pem", localCert);
+
+                PatchControllerApiPem(log, scp);
 
                 if (anyModified)
                 {
@@ -819,6 +896,112 @@ namespace Garry.Control4.Jailbreak.UI
             }
 
             return anyModified;
+        }
+
+        /// <summary>
+        /// Appends jailbreak_api.pem to /opt/control4/etc/ssl/certs/api.pem so the mosquitto-jwt-auth
+        /// plugin (OS 4.2+) accepts JWTs signed with our keypair. Unlike the CA chain patches,
+        /// this is a per-cert append (the plugin's pem_parser iterates every BEGIN CERTIFICATE block)
+        /// and we must kill the daemon to pick up the new key — it only reads the PEM at startup.
+        /// No reboot required — sysmand respawns the daemon within ~10 seconds.
+        ///
+        /// Dedupe strategy: strip any self-signed cert with CN=composerexpress_auth before appending,
+        /// which cleans up orphaned jailbreak certs from previous runs where the local keypair was
+        /// regenerated. The production cert shares the CN but is issued by "Control4 Primary Root CA"
+        /// (Subject != Issuer), so it survives the filter.
+        /// </summary>
+        private static void PatchControllerApiPem(LogWindow log, ScpClient scp)
+        {
+            const string remoteFile = "/opt/control4/etc/ssl/certs/api.pem";
+            var localPemPath = $"{Constants.CertsFolder}/jailbreak_api.pem";
+
+            log.WriteNormal($"Patching {remoteFile}:\n");
+
+            if (!File.Exists(localPemPath))
+            {
+                log.WriteWarning($"  {localPemPath} missing — skipping\n");
+                return;
+            }
+
+            string remotePem;
+            try
+            {
+                log.WriteNormal($"  Downloading {remoteFile}... ");
+                remotePem = DownloadFile(scp, remoteFile);
+                log.WriteSuccess("done\n");
+            }
+            catch (ScpException)
+            {
+                log.WriteTrace("  file doesn't exist (pre-OS 4.2) — skipping\n");
+                return;
+            }
+
+            var ourPem = File.ReadAllText(localPemPath).Trim();
+
+            var kept = ExtractPemBlocks(remotePem)
+                .Where(pem => !IsOrphanJailbreakCert(pem))
+                .ToList();
+
+            var rebuilt = string.Join("\n", kept.Concat(new[] { ourPem })).Trim() + "\n";
+            var original = string.Join("\n", ExtractPemBlocks(remotePem)).Trim() + "\n";
+
+            if (rebuilt == original)
+            {
+                log.WriteTrace("  (already patched)\n");
+                return;
+            }
+
+            var backupFilename = $"api.pem.{DateTime.Now:yyyy-dd-M--HH-mm-ss}.backup";
+            log.WriteNormal($"  Saving remote backup to /opt/control4/etc/ssl/certs/{backupFilename}... ");
+            UploadFile(scp, $"/opt/control4/etc/ssl/certs/{backupFilename}", remotePem);
+            log.WriteSuccess("done\n");
+
+            log.WriteNormal($"  Saving local backup to {Constants.CertsFolder}/{backupFilename}... ");
+            File.WriteAllText($"{Constants.CertsFolder}/{backupFilename}", remotePem);
+            log.WriteSuccess("done\n");
+
+            log.WriteNormal($"  Updating {remoteFile}... ");
+            UploadFile(scp, remoteFile, rebuilt);
+            log.WriteSuccess("done\n");
+
+            log.WriteNormal("  Restarting mosquitto-jwt-auth... ");
+            using (var ssh = new SshClient(scp.ConnectionInfo))
+            {
+                ssh.Connect();
+                // Plugin loads the PEM only at startup; sysmand respawns the process within ~10s.
+                ssh.RunCommand("pidof mosquitto-jwt-auth | xargs -r kill -9");
+                ssh.Disconnect();
+            }
+            log.WriteSuccess("done\n");
+        }
+
+        private static IEnumerable<string> ExtractPemBlocks(string pemText)
+        {
+            const string beginMarker = "-----BEGIN CERTIFICATE-----";
+            const string endMarker = "-----END CERTIFICATE-----";
+            var startIdx = 0;
+            while ((startIdx = pemText.IndexOf(beginMarker, startIdx, StringComparison.Ordinal)) >= 0)
+            {
+                var endIdx = pemText.IndexOf(endMarker, startIdx, StringComparison.Ordinal);
+                if (endIdx < 0) yield break;
+                yield return pemText.Substring(startIdx, endIdx - startIdx + endMarker.Length).Trim();
+                startIdx = endIdx + endMarker.Length;
+            }
+        }
+
+        private static bool IsOrphanJailbreakCert(string pem)
+        {
+            try
+            {
+                var cert = new X509Certificate2(Encoding.UTF8.GetBytes(pem));
+                var isSelfSigned = cert.Subject == cert.Issuer;
+                var isOurCn = cert.Subject.IndexOf("CN=composerexpress_auth", StringComparison.Ordinal) >= 0;
+                return isSelfSigned && isOurCn;
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -1086,6 +1269,185 @@ namespace Garry.Control4.Jailbreak.UI
             {
                 // Non-fatal — don't block the jailbreak if clock sync fails
             }
+        }
+
+        /// <summary>
+        /// Fetches the controller's common name (control4_{model}_{mac}) by reading the subject CN
+        /// from its own cert. This is what Composer uses to look up the JWT cache and what the
+        /// mosquitto-jwt-auth plugin expects in the signed JWT's CommonName claim.
+        /// NOTE: the Linux hostname uses a different format (hyphen-separated, no model prefix)
+        /// and is NOT what we want.
+        /// </summary>
+        private static string FetchControllerCommonName(ScpClient scp)
+        {
+            // agent.pem and client.pem both carry the controller's CN; agent.pem is the canonical one.
+            foreach (var remote in new[]
+                     {
+                         "/opt/control4/etc/ssl/certs/agent.pem",
+                         "/opt/control4/etc/ssl/certs/client.pem"
+                     })
+            {
+                try
+                {
+                    var pem = DownloadFile(scp, remote);
+                    var block = ExtractPemBlocks(pem).FirstOrDefault();
+                    if (block == null) continue;
+                    var cert = new X509Certificate2(Encoding.UTF8.GetBytes(block));
+                    var cn = cert.GetNameInfo(X509NameType.SimpleName, false);
+                    if (!string.IsNullOrEmpty(cn)) return cn;
+                }
+                catch
+                {
+                    // try next
+                }
+            }
+            return null;
+        }
+
+        // -------------------------------------------------------------------
+        // JWT cache (OS 4.2+ — bypasses the ControllersForm cloud-status gate)
+        // -------------------------------------------------------------------
+
+        private bool WriteJwtCache(LogWindow log, string configFolder, string commonName)
+        {
+            if (string.IsNullOrEmpty(commonName))
+            {
+                log.WriteWarning("Controller common name unknown — skipping JWT cache write.\n");
+                return false;
+            }
+
+            var cacheDir = $"{configFolder}/JwtCache";
+            Directory.CreateDirectory(cacheDir);
+            var cachePath = $"{cacheDir}/{commonName}.jwtcache";
+
+            // Idempotency: skip if a non-stale entry is already present.
+            if (File.Exists(cachePath) && IsJwtCacheFresh(cachePath))
+            {
+                log.WriteTrace($"JWT cache for {commonName} already fresh — skipping.\n");
+                return true;
+            }
+
+            var dealerUsername = ReadDealerUsername(configFolder) ?? "no";
+            log.WriteNormal($"Signing MQTT JWT for {commonName}... ");
+
+            var jwt = SignMqttJwt(log, commonName);
+            if (jwt == null)
+            {
+                log.WriteError("failed\n");
+                return false;
+            }
+            log.WriteSuccess("done\n");
+
+            var json =
+                "{\"entries\":{\"" + JsonEscape(dealerUsername) + "\":{" +
+                "\"token\":\"" + jwt + "\"," +
+                "\"expiresUtc\":\"2099-01-01T00:00:00Z\"}}}";
+
+            WriteFile(log, cachePath, json);
+            return true;
+        }
+
+        private static bool IsJwtCacheFresh(string path)
+        {
+            try
+            {
+                var text = File.ReadAllText(path);
+                var parsed = new System.Web.Script.Serialization.JavaScriptSerializer()
+                    .DeserializeObject(text) as Dictionary<string, object>;
+                if (parsed == null || !(parsed["entries"] is Dictionary<string, object> entries))
+                    return false;
+                foreach (var entry in entries.Values.OfType<Dictionary<string, object>>())
+                {
+                    if (!entry.TryGetValue("expiresUtc", out var expiresUtc)) continue;
+                    if (!DateTime.TryParse(expiresUtc?.ToString(), null,
+                            System.Globalization.DateTimeStyles.AssumeUniversal |
+                            System.Globalization.DateTimeStyles.AdjustToUniversal, out var expiry))
+                        continue;
+                    if (expiry > DateTime.UtcNow.AddDays(1))
+                        return true;
+                }
+                return false;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string ReadDealerUsername(string configFolder)
+        {
+            var path = $"{configFolder}/dealeraccount.xml";
+            if (!File.Exists(path)) return null;
+            try
+            {
+                return XDocument.Load(path).Root?.Element("Username")?.Value;
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        /// <summary>
+        /// Builds and signs an RS256 JWT matching the shape the controller's mosquitto-jwt-auth
+        /// plugin (OS 4.2+) expects. Uses jailbreak_api.key via OpenSSL for the signature.
+        /// </summary>
+        private string SignMqttJwt(LogWindow log, string commonName)
+        {
+            var keyPath = $"{Constants.CertsFolder}/jailbreak_api.key";
+            if (!File.Exists(keyPath))
+            {
+                log.WriteError($"{keyPath} missing.\n");
+                return null;
+            }
+
+            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+            var exp = now + 30 * 24 * 60 * 60; // 30 days
+
+            var header = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
+            var payload =
+                "{\"CommonName\":\"" + JsonEscape(commonName) + "\"," +
+                "\"Services\":\"director,sysman\"," +
+                "\"UserName\":\"CN=" + Constants.CertificateCn + ",L=Draper,ST=Utah,C=US\"," +
+                "\"Permissions\":\"/sysman,/director\"," +
+                "\"iat\":" + now + "," +
+                "\"exp\":" + exp + "}";
+
+            var headerB64 = Base64Url(Encoding.UTF8.GetBytes(header));
+            var payloadB64 = Base64Url(Encoding.UTF8.GetBytes(payload));
+            var signingInput = headerB64 + "." + payloadB64;
+
+            var tempInput = Path.GetTempFileName();
+            var tempSig = Path.GetTempFileName();
+            try
+            {
+                File.WriteAllBytes(tempInput, Encoding.UTF8.GetBytes(signingInput));
+
+                var exitCode = RunProcessPrintOutput(log, OpenSslExe,
+                    $"dgst -sha256 -sign \"{keyPath}\" -binary -out \"{tempSig}\" \"{tempInput}\"");
+                if (exitCode != 0) return null;
+
+                var sigBytes = File.ReadAllBytes(tempSig);
+                return signingInput + "." + Base64Url(sigBytes);
+            }
+            finally
+            {
+                try { File.Delete(tempInput); } catch { /* ignore */ }
+                try { File.Delete(tempSig); } catch { /* ignore */ }
+            }
+        }
+
+        private static string Base64Url(byte[] data)
+        {
+            return Convert.ToBase64String(data)
+                .TrimEnd('=')
+                .Replace('+', '-')
+                .Replace('/', '_');
+        }
+
+        private static string JsonEscape(string s)
+        {
+            return s.Replace("\\", "\\\\").Replace("\"", "\\\"");
         }
 
         // -------------------------------------------------------------------
