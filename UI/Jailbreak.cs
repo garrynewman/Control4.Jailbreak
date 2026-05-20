@@ -83,7 +83,8 @@ namespace Garry.Control4.Jailbreak.UI
                                     if (displayName.IndexOf("Composer Pro", StringComparison.OrdinalIgnoreCase) >= 0)
                                     {
                                         var installLocation = subKey?.GetValue("InstallLocation")?.ToString();
-                                        if (!string.IsNullOrEmpty(installLocation) && ValidateInstallDir(installLocation))
+                                        if (!string.IsNullOrEmpty(installLocation) &&
+                                            ValidateInstallDir(installLocation))
                                             return installLocation.TrimEnd('\\');
                                     }
                                 }
@@ -113,7 +114,11 @@ namespace Garry.Control4.Jailbreak.UI
             Username.TextChanged += OnUsernameChanged;
             Password.TextChanged += OnPasswordChanged;
             _connectionTimer.Tick += (s, ev) => _ = CheckConnection();
-            _debounceTimer.Tick += (s, ev) => { _debounceTimer.Stop(); _ = CheckConnection(); };
+            _debounceTimer.Tick += (s, ev) =>
+            {
+                _debounceTimer.Stop();
+                _ = CheckConnection();
+            };
             Load += Jailbreak_Load;
         }
 
@@ -150,7 +155,6 @@ namespace Garry.Control4.Jailbreak.UI
             {
                 ComposerInstallDir = DetectComposerInstallDir();
             }
-
         }
 
         private void checkBoxBlockSplitIo_CheckedChanged(object sender, EventArgs e)
@@ -235,7 +239,8 @@ namespace Garry.Control4.Jailbreak.UI
                 {
                     log.WriteError("Director patching failed:\n");
                     log.WriteError(ex);
-                    log.WriteNormal("\nLocal Composer patching succeeded. Run the jailbreak again to retry director patching.\n");
+                    log.WriteNormal(
+                        "\nLocal Composer patching succeeded. Run the jailbreak again to retry director patching.\n");
                     return;
                 }
 
@@ -250,6 +255,7 @@ namespace Garry.Control4.Jailbreak.UI
                     log.WriteNormal("Director needs a reboot to apply certificate changes.\n");
 
                     DialogResult rebootChoice = DialogResult.None;
+
                     void AskReboot()
                     {
                         rebootChoice = MessageBox.Show(
@@ -336,6 +342,7 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteNormal("Composer not found in standard locations. Please locate ComposerPro.exe.\n");
 
             string selectedDir = null;
+
             void AskUser()
             {
                 using (var open = new OpenFileDialog())
@@ -402,7 +409,8 @@ namespace Garry.Control4.Jailbreak.UI
                     }
                     else
                     {
-                        log.WriteNormal($"Schema version changed ({storedVersion} -> {Constants.CertSchemaVersion}) — regenerating.\n");
+                        log.WriteNormal(
+                            $"Schema version changed ({storedVersion} -> {Constants.CertSchemaVersion}) — regenerating.\n");
                     }
                 }
                 else
@@ -670,7 +678,9 @@ namespace Garry.Control4.Jailbreak.UI
             var settingsPath = $"{configFolder}/Composer/ComposerUpdateManagerSettings.Config";
             try
             {
-                var settingsDoc = File.Exists(settingsPath) ? XDocument.Load(settingsPath) : XDocument.Parse("<settings/>");
+                var settingsDoc = File.Exists(settingsPath)
+                    ? XDocument.Load(settingsPath)
+                    : XDocument.Parse("<settings/>");
 
                 var root = settingsDoc.Root ?? new XElement("settings");
                 XNamespace xsi = "http://www.w3.org/2001/XMLSchema-instance";
@@ -719,6 +729,7 @@ namespace Garry.Control4.Jailbreak.UI
                 log.WriteTrace("license.xml already exists\n");
                 return;
             }
+
             WriteFile(log, path, @"<?xml version=""1.0"" encoding=""utf-8""?>
 <License>
   <Name>Composer Pro</Name>
@@ -800,7 +811,8 @@ namespace Garry.Control4.Jailbreak.UI
         {
             if (!File.Exists($"{Constants.CertsFolder}/public.pem"))
             {
-                log.WriteError($"Couldn't find {Constants.CertsFolder}/public.pem - have you generated certificates?\n");
+                log.WriteError(
+                    $"Couldn't find {Constants.CertsFolder}/public.pem - have you generated certificates?\n");
                 return false;
             }
 
@@ -848,6 +860,7 @@ namespace Garry.Control4.Jailbreak.UI
                     scp = new ScpClient(SshConnection());
                     scp.Connect();
                 }
+
                 log.WriteSuccess("connected\n");
 
                 _controllerCommonName = FetchControllerCommonName(scp);
@@ -864,7 +877,8 @@ namespace Garry.Control4.Jailbreak.UI
                 log.WriteSuccess("done\n");
 
                 anyModified |= PatchRemoteCertChain(log, scp, "/etc/openvpn/clientca-prod.pem", localCert);
-                anyModified |= PatchRemoteCertChain(log, scp, "/opt/control4/etc/ssl/certs/clientca-prod.pem", localCert);
+                anyModified |=
+                    PatchRemoteCertChain(log, scp, "/opt/control4/etc/ssl/certs/clientca-prod.pem", localCert);
                 anyModified |= PatchRemoteCertChain(log, scp, "/etc/mosquitto/certs/ca-chain.pem", localCert);
 
                 PatchControllerApiPem(log, scp);
@@ -972,6 +986,7 @@ namespace Garry.Control4.Jailbreak.UI
                 ssh.RunCommand("pidof mosquitto-jwt-auth | xargs -r kill -9");
                 ssh.Disconnect();
             }
+
             log.WriteSuccess("done\n");
         }
 
@@ -1071,14 +1086,21 @@ namespace Garry.Control4.Jailbreak.UI
             return string.Join("\n", certs
                     .GroupBy(cert =>
                     {
-                        try { return new X509Certificate2(Encoding.UTF8.GetBytes(cert)).Subject; }
-                        catch { return cert; } // Fallback: keep unparseable certs, dedupe by content
+                        try
+                        {
+                            return new X509Certificate2(Encoding.UTF8.GetBytes(cert)).Subject;
+                        }
+                        catch
+                        {
+                            return cert;
+                        } // Fallback: keep unparseable certs, dedupe by content
                     })
                     .Select(group => group.Last()))
                 .Trim();
         }
 
-        private static bool DownloadRootDeviceSshKeys(LogWindow log, ScpClient scp, string localKeysFolder, List<string> warnings)
+        private static bool DownloadRootDeviceSshKeys(LogWindow log, ScpClient scp, string localKeysFolder,
+            List<string> warnings)
         {
             log.WriteNormal("Downloading ssh keys from device:\n");
             var files = new List<string>
@@ -1128,6 +1150,7 @@ namespace Garry.Control4.Jailbreak.UI
                     "restored using customer credentials, this capability may not always be " +
                     "available in future firmware versions. Back up this folder somewhere safe.\n");
             }
+
             return keysExist;
         }
 
@@ -1253,7 +1276,8 @@ namespace Garry.Control4.Jailbreak.UI
                     if (drift > 120) // More than 2 minutes off
                     {
                         var utcNow = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                        log.WriteNormal($"Controller clock is off by {TimeSpan.FromSeconds(drift):d'd 'h'h 'm'm'} — correcting... ");
+                        log.WriteNormal(
+                            $"Controller clock is off by {TimeSpan.FromSeconds(drift):d'd 'h'h 'm'm'} — correcting... ");
                         ssh.RunCommand($"date -u -s \"{utcNow}\"");
                         log.WriteSuccess("done\n");
                     }
@@ -1301,6 +1325,7 @@ namespace Garry.Control4.Jailbreak.UI
                     // try next
                 }
             }
+
             return null;
         }
 
@@ -1330,23 +1355,36 @@ namespace Garry.Control4.Jailbreak.UI
             var dealerUsername = ReadDealerUsername(configFolder) ?? "no";
             log.WriteNormal($"Signing MQTT JWT for {commonName}... ");
 
-            var jwt = SignMqttJwt(log, commonName);
+            var issuedAt = DateTimeOffset.UtcNow;
+            var expiry = issuedAt.AddDays(Constants.JwtExpireDays);
+
+            var jwt = SignMqttJwt(log, commonName, issuedAt, expiry);
             if (jwt == null)
             {
                 log.WriteError("failed\n");
                 return false;
             }
+
             log.WriteSuccess("done\n");
 
+            // expiresUtc must match the JWT's real "exp" claim — Composer caches the token
+            // until this date, so lying with a far-future value leaves an expired token in
+            // place that the controller silently rejects. Re-running the jailbreak re-signs.
             var json =
                 "{\"entries\":{\"" + JsonEscape(dealerUsername) + "\":{" +
                 "\"token\":\"" + jwt + "\"," +
-                "\"expiresUtc\":\"2099-01-01T00:00:00Z\"}}}";
+                "\"expiresUtc\":\"" + expiry.UtcDateTime.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\"}}}";
 
             WriteFile(log, cachePath, json);
             return true;
         }
 
+        /// <summary>
+        /// A cache entry is "fresh" only if the JWT it contains is still comfortably valid.
+        /// We decode the token's own "exp" claim rather than trusting the file's expiresUtc
+        /// field, because Composer treats a ~30-day-old token as stale regardless of what we
+        /// claim there — so a token within the refresh margin must be re-signed.
+        /// </summary>
         private static bool IsJwtCacheFresh(string path)
         {
             try
@@ -1356,22 +1394,62 @@ namespace Garry.Control4.Jailbreak.UI
                     .DeserializeObject(text) as Dictionary<string, object>;
                 if (parsed == null || !(parsed["entries"] is Dictionary<string, object> entries))
                     return false;
+
+                var threshold = DateTimeOffset.UtcNow.AddDays(Constants.JwtRefreshMarginDays);
+
+                // Every entry must be fresh; if any is missing/stale we re-sign the whole cache.
+                var sawEntry = false;
                 foreach (var entry in entries.Values.OfType<Dictionary<string, object>>())
                 {
-                    if (!entry.TryGetValue("expiresUtc", out var expiresUtc)) continue;
-                    if (!DateTime.TryParse(expiresUtc?.ToString(), null,
-                            System.Globalization.DateTimeStyles.AssumeUniversal |
-                            System.Globalization.DateTimeStyles.AdjustToUniversal, out var expiry))
-                        continue;
-                    if (expiry > DateTime.UtcNow.AddDays(1))
-                        return true;
+                    sawEntry = true;
+                    if (!entry.TryGetValue("token", out var token))
+                        return false;
+                    var exp = GetJwtExpiry(token?.ToString());
+                    if (exp == null || exp.Value <= threshold)
+                        return false;
                 }
-                return false;
+
+                return sawEntry;
             }
             catch
             {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Decodes a JWT's payload and returns its "exp" claim as a UTC timestamp, or null
+        /// if the token is malformed or carries no expiration.
+        /// </summary>
+        private static DateTimeOffset? GetJwtExpiry(string jwt)
+        {
+            if (string.IsNullOrEmpty(jwt)) return null;
+            var parts = jwt.Split('.');
+            if (parts.Length < 2) return null;
+            try
+            {
+                var payloadJson = Encoding.UTF8.GetString(Base64UrlDecode(parts[1]));
+                if (!(new JavaScriptSerializer()
+                        .DeserializeObject(payloadJson) is Dictionary<string, object> payload) ||
+                    !payload.TryGetValue("exp", out var exp)) return null;
+                return DateTimeOffset.FromUnixTimeSeconds(Convert.ToInt64(exp));
+            }
+            catch
+            {
+                return null;
+            }
+        }
+
+        private static byte[] Base64UrlDecode(string input)
+        {
+            var s = input.Replace('-', '+').Replace('_', '/');
+            switch (s.Length % 4)
+            {
+                case 2: s += "=="; break;
+                case 3: s += "="; break;
+            }
+
+            return Convert.FromBase64String(s);
         }
 
         private static string ReadDealerUsername(string configFolder)
@@ -1392,7 +1470,8 @@ namespace Garry.Control4.Jailbreak.UI
         /// Builds and signs an RS256 JWT matching the shape the controller's mosquitto-jwt-auth
         /// plugin (OS 4.2+) expects. Uses jailbreak_api.key via OpenSSL for the signature.
         /// </summary>
-        private string SignMqttJwt(LogWindow log, string commonName)
+        private string SignMqttJwt(LogWindow log, string commonName,
+            DateTimeOffset issuedAt, DateTimeOffset expiresAt)
         {
             var keyPath = $"{Constants.CertsFolder}/jailbreak_api.key";
             if (!File.Exists(keyPath))
@@ -1401,8 +1480,8 @@ namespace Garry.Control4.Jailbreak.UI
                 return null;
             }
 
-            var now = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-            var exp = now + 30 * 24 * 60 * 60; // 30 days
+            var now = issuedAt.ToUnixTimeSeconds();
+            var exp = expiresAt.ToUnixTimeSeconds();
 
             var header = "{\"alg\":\"RS256\",\"typ\":\"JWT\"}";
             var payload =
@@ -1432,8 +1511,23 @@ namespace Garry.Control4.Jailbreak.UI
             }
             finally
             {
-                try { File.Delete(tempInput); } catch { /* ignore */ }
-                try { File.Delete(tempSig); } catch { /* ignore */ }
+                try
+                {
+                    File.Delete(tempInput);
+                }
+                catch
+                {
+                    /* ignore */
+                }
+
+                try
+                {
+                    File.Delete(tempSig);
+                }
+                catch
+                {
+                    /* ignore */
+                }
             }
         }
 
@@ -1578,7 +1672,9 @@ namespace Garry.Control4.Jailbreak.UI
                     }
                 }
 
-                var name = result.TryGetValue("directorName", out var directorName) ? directorName?.ToString() : ipAddress;
+                var name = result.TryGetValue("directorName", out var directorName)
+                    ? directorName?.ToString()
+                    : ipAddress;
                 var status = _directorVersion != null
                     ? $"{name} ({_directorVersion})"
                     : name;
@@ -1875,6 +1971,7 @@ f:close()
                     log.WriteSuccess($"Management pack for {shortVersion} is already installed.\n");
                     return;
                 }
+
                 log.WriteSuccess("not yet installed\n");
 
                 // Find a matching SOAP version
@@ -1885,6 +1982,7 @@ f:close()
                     log.WriteError("No versions found from update service.\n");
                     return;
                 }
+
                 log.WriteSuccess("done\n");
 
                 var matchedVersion = versions.FirstOrDefault(v => v.StartsWith(shortVersion));
@@ -1893,13 +1991,15 @@ f:close()
                     log.WriteError($"No management pack found for OS {shortVersion}.\n");
                     return;
                 }
+
                 log.WriteNormal($"Matched version: {matchedVersion}\n");
 
                 log.WriteHeader("PACKAGE INFO");
                 log.WriteNormal("Querying packages... ");
                 string pkgName = null, pkgUrl = null, pkgChecksum = null;
                 long pkgSize = 0;
-                var found = await Task.Run(() => GetDriversPackageInfo(matchedVersion, out pkgName, out pkgUrl, out pkgSize, out pkgChecksum));
+                var found = await Task.Run(() =>
+                    GetDriversPackageInfo(matchedVersion, out pkgName, out pkgUrl, out pkgSize, out pkgChecksum));
                 if (!found)
                 {
                     log.WriteError("No management pack package found for this version.\n");
@@ -1925,12 +2025,10 @@ f:close()
                         if (args.ProgressPercentage == lastPercent) return;
                         lastPercent = args.ProgressPercentage;
                         BeginInvoke((Action)(() =>
-                            log.WriteProgress($"Downloading... {args.ProgressPercentage}% ({args.BytesReceived / 1024 / 1024} MB / {args.TotalBytesToReceive / 1024 / 1024} MB)")));
+                            log.WriteProgress(
+                                $"Downloading... {args.ProgressPercentage}% ({args.BytesReceived / 1024 / 1024} MB / {args.TotalBytesToReceive / 1024 / 1024} MB)")));
                     };
-                    log.FormClosing += (s, args) =>
-                    {
-                        client.CancelAsync();
-                    };
+                    log.FormClosing += (s, args) => { client.CancelAsync(); };
                     await client.DownloadFileTaskAsync(pkgUrl, tempFile);
                 }
 
@@ -1967,11 +2065,11 @@ f:close()
         private static XDocument CallSoapService(string action, string innerXml)
         {
             var soapBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
-                "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
-                "xmlns:upd=\"" + Constants.UpdatesSoapNamespace + "\">" +
-                "<soap:Body>" +
-                innerXml +
-                "</soap:Body></soap:Envelope>";
+                           "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
+                           "xmlns:upd=\"" + Constants.UpdatesSoapNamespace + "\">" +
+                           "<soap:Body>" +
+                           innerXml +
+                           "</soap:Body></soap:Envelope>";
 
             using (var client = new WebClient())
             {
@@ -2067,9 +2165,11 @@ f:close()
                                         installed.Add(ver);
                                     }
                                     // Match "Composer OS Management Package 4.1.0" → "4.1.0"
-                                    else if (displayName.StartsWith("Composer OS Management Package ", StringComparison.OrdinalIgnoreCase))
+                                    else if (displayName.StartsWith("Composer OS Management Package ",
+                                                 StringComparison.OrdinalIgnoreCase))
                                     {
-                                        var ver = displayName.Substring("Composer OS Management Package ".Length).Trim();
+                                        var ver = displayName.Substring("Composer OS Management Package ".Length)
+                                            .Trim();
                                         if (!string.IsNullOrEmpty(ver))
                                             installed.Add(ver);
                                     }
@@ -2103,6 +2203,7 @@ f:close()
                 if (soapVersion.StartsWith(iv + ".") || soapVersion == iv)
                     return true;
             }
+
             return false;
         }
 
