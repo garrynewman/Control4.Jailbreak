@@ -2,7 +2,7 @@ namespace Garry.Control4.Jailbreak
 {
     public static class Constants
     {
-        public const int Version = 8;
+        public const string Version = "8.1";
 
         /// <summary>
         /// The cert for composer needs to be named cacert-*.pem
@@ -41,6 +41,19 @@ namespace Garry.Control4.Jailbreak
         public const string OpenSslConfig = @"Certs\openssl.cfg";
 
         /// <summary>
+        /// Lifetime, in days, of the forged MQTT JWT (the "exp" claim). The controller's
+        /// mosquitto-jwt-auth plugin enforces this, so it can't just be set to a huge value
+        /// like the certificate — keep it modest and let the tool re-sign on each run.
+        /// </summary>
+        public const int JwtExpireDays = 30;
+
+        /// <summary>
+        /// Re-sign the MQTT JWT once it gets within this many days of expiring, so a
+        /// re-run of the jailbreak refreshes a soon-to-be-stale token proactively.
+        /// </summary>
+        public const int JwtRefreshMarginDays = 5;
+
+        /// <summary>
         /// The OS version this tool was tested against.
         /// </summary>
         public const string TargetOsVersion = @"4.2.0.753182";
@@ -72,7 +85,8 @@ namespace Garry.Control4.Jailbreak
         /// Normally provided by the cloud service's ConnectStatus.UpdateManagerUrl,
         /// but since we skip cloud auth, we write this into ComposerUpdateManagerSettings.Config.
         /// </summary>
-        public const string UpdatesExperienceUrl = "https://services.control4.com/Updates2x-experience/v2_0/Updates.asmx";
+        public const string UpdatesExperienceUrl =
+            "https://services.control4.com/Updates2x-experience/v2_0/Updates.asmx";
 
         /// <summary>
         /// The XML namespace used in SOAP requests/responses for the Updates service.
