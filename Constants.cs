@@ -104,5 +104,12 @@ namespace Garry.Control4.Jailbreak
         /// cleared on reboot, letting us detect whether a pending reboot has been completed.
         /// </summary>
         public const string RebootMarkerPath = "/tmp/.jailbreak-reboot-pending";
+
+        /// <summary>
+        /// Root-only cache on the controller for the cert material needed to reuse an
+        /// existing jailbreak from another laptop.
+        /// </summary>
+        public const string RemoteStateFolder = "/home/root/.c4jailbreak";
+        public const string RemoteStateManifestPath = RemoteStateFolder + "/manifest.json";
     }
 }
