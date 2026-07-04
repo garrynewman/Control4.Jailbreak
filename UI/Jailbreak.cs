@@ -27,6 +27,27 @@ namespace Garry.Control4.Jailbreak.UI
         private string _lastCheckedIp;
         private readonly Timer _connectionTimer = new Timer { Interval = 10000 };
         private readonly Timer _debounceTimer = new Timer { Interval = 800 };
+        private static readonly string[] RemoteJailbreakBundleFiles =
+        {
+            ".schema-version",
+            "public.pem",
+            "private.key",
+            Constants.ComposerCertName,
+            "composer.key",
+            "composer.pem",
+            "composer.p12",
+            "jailbreak_api.key",
+            "jailbreak_api.pem"
+        };
+
+        private static readonly string[] RequiredRemoteJailbreakBundleFiles =
+        {
+            ".schema-version",
+            "public.pem",
+            "private.key",
+            "jailbreak_api.key",
+            "jailbreak_api.pem"
+        };
 
         // Composer install path detection
         public string ComposerInstallDir { get; private set; }
@@ -197,26 +218,32 @@ namespace Garry.Control4.Jailbreak.UI
                     return;
                 }
 
-                // 3. Ensure root CA certs exist (idempotent via schema version)
+                // 3. If another laptop already jailbroke this director with a reusable bundle,
+                // restore that cert material before generating anything locally.
+                log.WriteHeader("EXISTING JAILBREAK");
+                var restoredExistingJailbreak =
+                    TryRestoreExistingJailbreakBundle(log, warnings, out var restoredExistingJailbreakRebootPending);
+
+                // 4. Ensure root CA certs exist (idempotent via schema version)
                 log.WriteHeader("ROOT CA");
                 if (!EnsureRootCaCerts(log))
                     return;
 
-                // 4. Generate Composer cert (always regenerate — short-lived)
+                // 5. Generate Composer cert (always regenerate - short-lived)
                 log.WriteHeader("COMPOSER CERTIFICATE");
                 if (!GenerateComposerCert(log))
                     return;
 
-                // 5. Ensure MQTT JWT signing keypair exists (OS 4.2+)
+                // 6. Ensure MQTT JWT signing keypair exists (OS 4.2+)
                 log.WriteHeader("JWT SIGNING KEYPAIR");
                 if (!EnsureJwtSigningKeyPair(log))
                     return;
 
-                // 6. Patch ComposerPro.exe.config (idempotent)
+                // 7. Patch ComposerPro.exe.config (idempotent)
                 log.WriteHeader("PATCH CONFIG");
                 PatchConfigFile(log);
 
-                // 7-11. Deploy files + settings
+                // 8-12. Deploy files + settings
                 log.WriteHeader("DEPLOY FILES");
 
                 var configFolder = GetComposerConfigFolder();
@@ -227,21 +254,29 @@ namespace Garry.Control4.Jailbreak.UI
                 EnsureDealerAccount(log, configFolder);
                 WriteLicenseFile(log, configFolder);
 
-                // 11. Patch Director (SSH)
+                // 13. Patch Director (SSH)
                 log.WriteHeader("PATCH DIRECTOR");
 
                 bool directorModified;
-                try
+                if (restoredExistingJailbreak)
                 {
-                    directorModified = PatchDirector(log, warnings);
+                    log.WriteTrace("Director reusable jailbreak bundle restored - skipping director patch.\n");
+                    directorModified = restoredExistingJailbreakRebootPending;
                 }
-                catch (Exception ex)
+                else
                 {
-                    log.WriteError("Director patching failed:\n");
-                    log.WriteError(ex);
-                    log.WriteNormal(
-                        "\nLocal Composer patching succeeded. Run the jailbreak again to retry director patching.\n");
-                    return;
+                    try
+                    {
+                        directorModified = PatchDirector(log, warnings);
+                    }
+                    catch (Exception ex)
+                    {
+                        log.WriteError("Director patching failed:\n");
+                        log.WriteError(ex);
+                        log.WriteNormal(
+                            "\nLocal Composer patching succeeded. Run the jailbreak again to retry director patching.\n");
+                        return;
+                    }
                 }
 
                 // Write MQTT JWT cache (OS 4.2+). Harmless on earlier OS — Composer only
@@ -379,6 +414,165 @@ namespace Garry.Control4.Jailbreak.UI
             Properties.Settings.Default.Save();
             log.WriteNormal($"Using Composer at: {selectedDir}\n");
             return true;
+        }
+
+        // -------------------------------------------------------------------
+        // Existing jailbreak reuse
+        // -------------------------------------------------------------------
+
+        private bool TryRestoreExistingJailbreakBundle(LogWindow log, List<string> warnings, out bool rebootPending)
+        {
+            rebootPending = false;
+
+            if (LocalJailbreakBundleComplete())
+            {
+                log.WriteTrace("Local reusable jailbreak bundle already exists - skipping remote restore.\n");
+                return false;
+            }
+
+            log.WriteNormal("Local reusable jailbreak bundle is incomplete - checking director.\n");
+
+            ScpClient scp = null;
+            try
+            {
+                scp = ConnectDirectorScp(log);
+
+                if (!RemoteJailbreakBundleExists(log, scp))
+                {
+                    WarnIfLegacyJailbreakCertPresent(log, scp, warnings);
+                    return false;
+                }
+
+                if (!DownloadRemoteJailbreakBundle(log, scp))
+                    return false;
+
+                _controllerCommonName = FetchControllerCommonName(scp);
+                rebootPending = IsDirectorRebootPending(log, scp);
+
+                log.WriteSuccess("Reusable jailbreak cert material restored from director.\n");
+                return true;
+            }
+            catch (Exception ex)
+            {
+                log.WriteWarning(
+                    "Could not check director for reusable jailbreak cert material - continuing with local cert generation.\n");
+                log.WriteTrace($"{ex.Message}\n");
+                return false;
+            }
+            finally
+            {
+                scp?.Dispose();
+            }
+        }
+
+        private static bool LocalJailbreakBundleComplete()
+        {
+            return RequiredRemoteJailbreakBundleFiles
+                .All(file => File.Exists(Path.Combine(Constants.CertsFolder, file)));
+        }
+
+        private static bool RemoteJailbreakBundleExists(LogWindow log, ScpClient scp)
+        {
+            log.WriteNormal($"Looking for reusable bundle at {Constants.RemoteStateFolder}... ");
+            try
+            {
+                DownloadFile(scp, Constants.RemoteStateManifestPath);
+                log.WriteSuccess("found\n");
+                return true;
+            }
+            catch (ScpException)
+            {
+                log.WriteTrace("not found\n");
+                return false;
+            }
+        }
+
+        private static bool DownloadRemoteJailbreakBundle(LogWindow log, ScpClient scp)
+        {
+            var downloaded = new Dictionary<string, byte[]>();
+
+            log.WriteNormal($"Downloading reusable bundle from {Constants.RemoteStateFolder}:\n");
+            foreach (var file in RemoteJailbreakBundleFiles)
+            {
+                var required = RequiredRemoteJailbreakBundleFiles.Contains(file);
+                log.WriteNormal($"  Downloading {file}... ");
+                try
+                {
+                    downloaded[file] = DownloadFileBytes(scp, RemoteJailbreakBundlePath(file));
+                    log.WriteSuccess("done\n");
+                }
+                catch (ScpException)
+                {
+                    if (required)
+                    {
+                        log.WriteWarning("missing\n");
+                        log.WriteWarning(
+                            "Reusable bundle is incomplete - falling back to local cert generation.\n");
+                        return false;
+                    }
+
+                    log.WriteTrace("not present\n");
+                }
+            }
+
+            Directory.CreateDirectory(Constants.CertsFolder);
+            foreach (var item in downloaded)
+            {
+                File.WriteAllBytes(Path.Combine(Constants.CertsFolder, item.Key), item.Value);
+            }
+
+            if (LocalJailbreakBundleComplete())
+                return true;
+
+            log.WriteWarning("Reusable bundle restored but required local files are still missing.\n");
+            return false;
+        }
+
+        private static void WarnIfLegacyJailbreakCertPresent(LogWindow log, ScpClient scp, List<string> warnings)
+        {
+            try
+            {
+                var chain = DownloadFile(scp, "/etc/mosquitto/certs/ca-chain.pem");
+                if (!ContainsJailbreakRootCaCandidate(chain))
+                    return;
+
+                var warning =
+                    "This director appears to already contain a jailbreak CA, but it does not have " +
+                    "a reusable cert bundle. Older jailbreak runs did not store the CA private key " +
+                    "on the controller, so this laptop cannot recover it. Copy the Certs folder " +
+                    "from the original laptop, or let this run add this laptop's CA.\n";
+                log.WriteWarning(warning);
+                warnings.Add(warning);
+            }
+            catch
+            {
+                // Best-effort hint only.
+            }
+        }
+
+        private static bool ContainsJailbreakRootCaCandidate(string certChain)
+        {
+            return ExtractPemBlocks(certChain).Any(IsJailbreakRootCaCandidate);
+        }
+
+        private static bool IsJailbreakRootCaCandidate(string pem)
+        {
+            try
+            {
+                var cert = new X509Certificate2(Encoding.UTF8.GetBytes(pem));
+                return cert.Subject == cert.Issuer &&
+                       cert.Subject.IndexOf("CN=Control4 Corporation CA", StringComparison.Ordinal) >= 0 &&
+                       cert.Subject.IndexOf("O=Control4 Corporation", StringComparison.Ordinal) >= 0;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+        private static string RemoteJailbreakBundlePath(string fileName)
+        {
+            return Constants.RemoteStateFolder + "/" + fileName;
         }
 
         // -------------------------------------------------------------------
@@ -803,6 +997,65 @@ namespace Garry.Control4.Jailbreak.UI
             return sshConnectionInfo;
         }
 
+        private ScpClient ConnectDirectorScp(LogWindow log)
+        {
+            var scp = new ScpClient(SshConnection());
+
+            log.WriteNormal("Connecting to director via SCP... ");
+            try
+            {
+                scp.Connect();
+                log.WriteSuccess("connected\n");
+                return scp;
+            }
+            catch (Exception)
+            {
+                log.WriteWarning("failed - attempting to restore SSH access\n");
+
+                try
+                {
+                    scp.Dispose();
+
+                    log.WriteNormal("Restoring SSH password authentication... ");
+                    ApplySshRestoreExploit(GetWritableDriverId());
+                    log.WriteSuccess("done\n");
+
+                    log.WriteNormal("Reloading SSH service... ");
+                    ReloadSshService();
+                    log.WriteSuccess("done\n");
+
+                    log.WriteNormal("Waiting for SSH to reload... ");
+                    System.Threading.Thread.Sleep(1000);
+                    log.WriteSuccess("done\n");
+
+                    log.WriteNormal("Reconnecting via SCP... ");
+                    scp = new ScpClient(SshConnection());
+                    scp.Connect();
+                    log.WriteSuccess("connected\n");
+                    return scp;
+                }
+                catch
+                {
+                    scp.Dispose();
+                    throw;
+                }
+            }
+        }
+
+        private static bool IsDirectorRebootPending(LogWindow log, ScpClient scp)
+        {
+            try
+            {
+                DownloadFile(scp, Constants.RebootMarkerPath);
+                log.WriteNormal("Previous reboot is still pending.\n");
+                return true;
+            }
+            catch (ScpException)
+            {
+                return false;
+            }
+        }
+
         /// <summary>
         /// Patches the director's cert chains via SSH.
         /// Returns true if a reboot is needed (either from new cert changes or a previous pending reboot).
@@ -832,36 +1085,7 @@ namespace Garry.Control4.Jailbreak.UI
 
             try
             {
-                scp = new ScpClient(SshConnection());
-
-                log.WriteNormal("Connecting to director via SCP... ");
-                try
-                {
-                    scp.Connect();
-                }
-                catch (Exception)
-                {
-                    log.WriteWarning("failed — attempting to restore SSH access\n");
-
-                    log.WriteNormal("Restoring SSH password authentication... ");
-                    ApplySshRestoreExploit(GetWritableDriverId());
-                    log.WriteSuccess("done\n");
-
-                    log.WriteNormal("Reloading SSH service... ");
-                    ReloadSshService();
-                    log.WriteSuccess("done\n");
-
-                    log.WriteNormal("Waiting for SSH to reload... ");
-                    System.Threading.Thread.Sleep(1000);
-                    log.WriteSuccess("done\n");
-
-                    log.WriteNormal("Reconnecting via SCP... ");
-                    scp.Dispose();
-                    scp = new ScpClient(SshConnection());
-                    scp.Connect();
-                }
-
-                log.WriteSuccess("connected\n");
+                scp = ConnectDirectorScp(log);
 
                 _controllerCommonName = FetchControllerCommonName(scp);
 
@@ -883,6 +1107,20 @@ namespace Garry.Control4.Jailbreak.UI
 
                 PatchControllerApiPem(log, scp);
 
+                try
+                {
+                    UploadJailbreakStateBundle(log, scp);
+                }
+                catch (Exception ex)
+                {
+                    var warning =
+                        "Could not save reusable jailbreak cert bundle to the director. " +
+                        "This run can still work, but another laptop may need to re-patch the director.\n";
+                    log.WriteWarning(warning);
+                    log.WriteTrace($"{ex.Message}\n");
+                    warnings.Add(warning);
+                }
+
                 if (anyModified)
                 {
                     // Write reboot marker — /tmp is cleared on reboot
@@ -891,17 +1129,7 @@ namespace Garry.Control4.Jailbreak.UI
                 }
                 else
                 {
-                    // Check if a previous reboot is still pending
-                    try
-                    {
-                        DownloadFile(scp, Constants.RebootMarkerPath);
-                        log.WriteNormal("Previous reboot is still pending.\n");
-                        anyModified = true;
-                    }
-                    catch (ScpException)
-                    {
-                        // Marker gone — controller was rebooted
-                    }
+                    anyModified = IsDirectorRebootPending(log, scp);
                 }
             }
             finally
@@ -910,6 +1138,56 @@ namespace Garry.Control4.Jailbreak.UI
             }
 
             return anyModified;
+        }
+
+        private static void UploadJailbreakStateBundle(LogWindow log, ScpClient scp)
+        {
+            if (!LocalJailbreakBundleComplete())
+            {
+                log.WriteWarning("Reusable jailbreak bundle is incomplete locally - skipping director cache.\n");
+                return;
+            }
+
+            log.WriteNormal($"Saving reusable jailbreak state to {Constants.RemoteStateFolder}:\n");
+
+            log.WriteNormal("  Writing manifest.json... ");
+            UploadFile(scp, Constants.RemoteStateManifestPath, BuildRemoteJailbreakManifest());
+            log.WriteSuccess("done\n");
+
+            foreach (var file in RemoteJailbreakBundleFiles)
+            {
+                var localPath = Path.Combine(Constants.CertsFolder, file);
+                if (!File.Exists(localPath))
+                    continue;
+
+                log.WriteNormal($"  Uploading {file}... ");
+                UploadFileBytes(scp, RemoteJailbreakBundlePath(file), File.ReadAllBytes(localPath));
+                log.WriteSuccess("done\n");
+            }
+
+            HardenRemoteJailbreakStatePermissions(scp);
+        }
+
+        private static string BuildRemoteJailbreakManifest()
+        {
+            return "{\n" +
+                   "  \"toolVersion\":\"" + JsonEscape(Constants.Version) + "\",\n" +
+                   "  \"certSchemaVersion\":" + Constants.CertSchemaVersion + ",\n" +
+                   "  \"certificateCn\":\"" + JsonEscape(Constants.CertificateCn) + "\",\n" +
+                   "  \"createdUtc\":\"" + DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ") + "\"\n" +
+                   "}\n";
+        }
+
+        private static void HardenRemoteJailbreakStatePermissions(ScpClient scp)
+        {
+            using (var ssh = new SshClient(scp.ConnectionInfo))
+            {
+                ssh.Connect();
+                ssh.RunCommand(
+                    $"chmod 700 {Constants.RemoteStateFolder} 2>/dev/null; " +
+                    $"chmod 600 {Constants.RemoteStateFolder}/* 2>/dev/null");
+                ssh.Disconnect();
+            }
         }
 
         /// <summary>
@@ -1561,16 +1839,18 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
+        private static byte[] DownloadFileBytes(ScpClient scp, string remoteFilename)
+        {
+            using (var stream = new MemoryStream())
+            {
+                scp.Download(remoteFilename, stream);
+                return stream.ToArray();
+            }
+        }
+
         private static void UploadFile(ScpClient scp, string remoteFilename, string fileContents)
         {
-            var remoteDirectory = Path.GetDirectoryName(remoteFilename);
-
-            using (var ssh = new SshClient(scp.ConnectionInfo))
-            {
-                ssh.Connect();
-                ssh.RunCommand($"mkdir -p {remoteDirectory}");
-                ssh.Disconnect();
-            }
+            EnsureRemoteDirectory(scp, remoteFilename);
 
             using (var stream = new MemoryStream())
             {
@@ -1582,6 +1862,36 @@ namespace Garry.Control4.Jailbreak.UI
                     scp.Upload(stream, remoteFilename);
                 }
             }
+        }
+
+        private static void UploadFileBytes(ScpClient scp, string remoteFilename, byte[] fileContents)
+        {
+            EnsureRemoteDirectory(scp, remoteFilename);
+
+            using (var stream = new MemoryStream(fileContents))
+            {
+                scp.Upload(stream, remoteFilename);
+            }
+        }
+
+        private static void EnsureRemoteDirectory(ScpClient scp, string remoteFilename)
+        {
+            var remoteDirectory = GetRemoteDirectory(remoteFilename);
+            if (string.IsNullOrEmpty(remoteDirectory))
+                return;
+
+            using (var ssh = new SshClient(scp.ConnectionInfo))
+            {
+                ssh.Connect();
+                ssh.RunCommand($"mkdir -p {remoteDirectory}");
+                ssh.Disconnect();
+            }
+        }
+
+        private static string GetRemoteDirectory(string remoteFilename)
+        {
+            var index = remoteFilename.LastIndexOf('/');
+            return index > 0 ? remoteFilename.Substring(0, index) : null;
         }
 
         private void OnIpAddressChanged(object sender, EventArgs e)
