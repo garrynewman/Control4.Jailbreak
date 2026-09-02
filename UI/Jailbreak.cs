@@ -1305,10 +1305,14 @@ namespace Garry.Control4.Jailbreak.UI
         private static string FetchControllerCommonName(ScpClient scp)
         {
             // agent.pem and client.pem both carry the controller's CN; agent.pem is the canonical one.
+            // On OS 4.2.1 those moved: agent.pem is a dangling symlink to a now-absent client.pem,
+            // and the device cert lives at /opt/control4/etc/certs/cvm-device.pem instead. Try the
+            // legacy paths first (unchanged for older OS), then fall back to the 4.2.1 location.
             foreach (var remote in new[]
                      {
                          "/opt/control4/etc/ssl/certs/agent.pem",
-                         "/opt/control4/etc/ssl/certs/client.pem"
+                         "/opt/control4/etc/ssl/certs/client.pem",
+                         "/opt/control4/etc/certs/cvm-device.pem"
                      })
             {
                 try
