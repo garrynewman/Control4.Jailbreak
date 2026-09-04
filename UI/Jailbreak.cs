@@ -172,9 +172,7 @@ namespace Garry.Control4.Jailbreak.UI
             var log = new LogWindow(_mainWindow, "Jailbreak");
             var warnings = new List<string>();
 
-            // Snapshot every UI input on the UI thread up front. The jailbreak runs on a
-            // background thread (so the window stays responsive and the log streams live),
-            // and background code must never read WinForms controls directly.
+            // Read controls here on the UI thread; the worker must not touch them.
             var inputs = new JailbreakInputs(
                 IpAddress.Text,
                 Username.Text,
@@ -182,9 +180,7 @@ namespace Garry.Control4.Jailbreak.UI
                 MacAddress.Text,
                 checkBoxBlockSplitIo.Checked);
 
-            // Pause the background status poll: with the jailbreak now on a worker thread the
-            // UI thread is free, so this timer would otherwise fire (and hit the controller)
-            // mid-patch and during the reboot window.
+            // Stop the status poll so it doesn't hit the controller mid-patch or during reboot.
             buttonJailbreak.Enabled = false;
             _connectionTimer.Stop();
             try
@@ -855,9 +851,9 @@ namespace Garry.Control4.Jailbreak.UI
         }
 
         /// <summary>
-        /// Connects an SSH/SCP client, retrying the initial connect a few times with a short
-        /// delay. ConnectionInfo.RetryAttempts only covers SSH channel-open retries, not the
-        /// initial TCP/handshake, which is the part that fails on a flaky network.
+        /// Retries the initial connect (ConnectionInfo.RetryAttempts only covers channel-open,
+        /// not the connect). Only network transients are retried; auth/protocol failures are
+        /// deterministic, so they fail fast to let the caller's SSH-restore path run instead.
         /// </summary>
         private static void ConnectWithRetries(BaseClient client, LogWindow log, string label, int maxAttempts = 3)
         {
@@ -870,7 +866,7 @@ namespace Garry.Control4.Jailbreak.UI
                 }
                 catch (Exception ex)
                 {
-                    if (attempt >= maxAttempts)
+                    if (attempt >= maxAttempts || !IsTransientConnectFailure(ex))
                         throw;
 
                     log.WriteWarning(
@@ -878,6 +874,17 @@ namespace Garry.Control4.Jailbreak.UI
                     System.Threading.Thread.Sleep(TimeSpan.FromSeconds(2));
                 }
             }
+        }
+
+        private static bool IsTransientConnectFailure(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                if (e is System.Net.Sockets.SocketException) return true;
+                if (e is SshOperationTimeoutException) return true;
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -910,9 +917,8 @@ namespace Garry.Control4.Jailbreak.UI
 
             try
             {
-                // One SCP client (file transfer) and one SSH client (command execution) are
-                // opened here and reused by every helper below, instead of opening a fresh
-                // connection per operation. Both share the same ConnectionInfo/retry/timeout.
+                // One SCP client (files) + one SSH client (commands), reused by every helper
+                // below instead of reconnecting per operation.
                 var connectionInfo = SshConnection(inputs);
                 scp = new ScpClient(connectionInfo);
                 ssh = new SshClient(connectionInfo);

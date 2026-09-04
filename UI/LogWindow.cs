@@ -15,15 +15,13 @@ namespace Garry.Control4.Jailbreak.UI
             Show();
         }
 
-        // All log writes funnel through here. The jailbreak now runs on a background
-        // thread, so writes can arrive off the UI thread — marshal them back before
-        // touching the textBox (WinForms controls are single-threaded).
+        // Writes can arrive off the UI thread (the jailbreak runs on a worker), so marshal
+        // back before touching the textBox.
         private void WriteColored(Color color, string v)
         {
             if (textBox.IsDisposed) return;
             if (textBox.InvokeRequired)
             {
-                // The window can be closed mid-run now that the jailbreak is off-thread.
                 try { textBox.Invoke((Action)(() => WriteColored(color, v))); }
                 catch (ObjectDisposedException) { }
                 catch (InvalidOperationException) { }
