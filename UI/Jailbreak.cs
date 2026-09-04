@@ -167,11 +167,35 @@ namespace Garry.Control4.Jailbreak.UI
         // Jailbreak button — the one-click orchestrator
         // -------------------------------------------------------------------
 
-        private void DoJailbreak(object sender, EventArgs e)
+        private async void DoJailbreak(object sender, EventArgs e)
         {
             var log = new LogWindow(_mainWindow, "Jailbreak");
             var warnings = new List<string>();
 
+            // Read controls here on the UI thread; the worker must not touch them.
+            var inputs = new JailbreakInputs(
+                IpAddress.Text,
+                Username.Text,
+                Password.Text,
+                MacAddress.Text,
+                checkBoxBlockSplitIo.Checked);
+
+            // Stop the status poll so it doesn't hit the controller mid-patch or during reboot.
+            buttonJailbreak.Enabled = false;
+            _connectionTimer.Stop();
+            try
+            {
+                await Task.Run(() => JailbreakWorker(inputs, log, warnings));
+            }
+            finally
+            {
+                buttonJailbreak.Enabled = true;
+                _connectionTimer.Start();
+            }
+        }
+
+        private void JailbreakWorker(JailbreakInputs inputs, LogWindow log, List<string> warnings)
+        {
             try
             {
                 // 1. Find Composer install dir
@@ -223,7 +247,7 @@ namespace Garry.Control4.Jailbreak.UI
                 DeployComposerFiles(log, configFolder);
                 WriteFeatureFlags(log, configFolder);
                 UpdateUpdateManagerSettings(log, configFolder);
-                ConfigureSplitIoBlock(log, checkBoxBlockSplitIo.Checked);
+                ConfigureSplitIoBlock(log, inputs.BlockSplitIo);
                 EnsureDealerAccount(log, configFolder);
                 WriteLicenseFile(log, configFolder);
 
@@ -233,7 +257,7 @@ namespace Garry.Control4.Jailbreak.UI
                 bool directorModified;
                 try
                 {
-                    directorModified = PatchDirector(log, warnings);
+                    directorModified = PatchDirector(inputs, log, warnings);
                 }
                 catch (Exception ex)
                 {
@@ -275,7 +299,7 @@ namespace Garry.Control4.Jailbreak.UI
 
                     if (rebootChoice == DialogResult.Yes)
                     {
-                        RebootDirector(log, warnings);
+                        RebootDirector(inputs, log, warnings);
                         _directorVersion = null;
                     }
                     else
@@ -764,12 +788,35 @@ namespace Garry.Control4.Jailbreak.UI
         // SSH / Director patching — returns true if cert chains were modified
         // -------------------------------------------------------------------
 
-        private ConnectionInfo SshConnection()
+        /// <summary>
+        /// Immutable snapshot of the UI inputs a jailbreak run needs, captured on the UI
+        /// thread before the work moves to a background thread.
+        /// </summary>
+        private sealed class JailbreakInputs
+        {
+            public JailbreakInputs(string ipAddress, string username, string password, string macAddress,
+                bool blockSplitIo)
+            {
+                IpAddress = ipAddress;
+                Username = username;
+                Password = password;
+                MacAddress = macAddress;
+                BlockSplitIo = blockSplitIo;
+            }
+
+            public string IpAddress { get; }
+            public string Username { get; }
+            public string Password { get; }
+            public string MacAddress { get; }
+            public bool BlockSplitIo { get; }
+        }
+
+        private ConnectionInfo SshConnection(JailbreakInputs inputs)
         {
             var authMethods = new List<AuthenticationMethod>
             {
-                new PasswordAuthenticationMethod(Username.Text, Password.Text),
-                new PasswordAuthenticationMethod(Username.Text, "t0talc0ntr0l4!")
+                new PasswordAuthenticationMethod(inputs.Username, inputs.Password),
+                new PasswordAuthenticationMethod(inputs.Username, "t0talc0ntr0l4!")
             };
 
             var privateKeyFiles = new List<IPrivateKeySource>();
@@ -791,23 +838,60 @@ namespace Garry.Control4.Jailbreak.UI
             }
 
             var sshConnectionInfo = new ConnectionInfo(
-                IpAddress.Text,
-                Username.Text,
+                inputs.IpAddress,
+                inputs.Username,
                 authMethods.ToArray()
             )
             {
-                RetryAttempts = 1,
-                Timeout = TimeSpan.FromSeconds(5)
+                RetryAttempts = 3,
+                Timeout = TimeSpan.FromSeconds(15)
             };
 
             return sshConnectionInfo;
         }
 
         /// <summary>
+        /// Retries the initial connect (ConnectionInfo.RetryAttempts only covers channel-open,
+        /// not the connect). Only network transients are retried; auth/protocol failures are
+        /// deterministic, so they fail fast to let the caller's SSH-restore path run instead.
+        /// </summary>
+        private static void ConnectWithRetries(BaseClient client, LogWindow log, string label, int maxAttempts = 3)
+        {
+            for (var attempt = 1; attempt <= maxAttempts; attempt++)
+            {
+                try
+                {
+                    client.Connect();
+                    return;
+                }
+                catch (Exception ex)
+                {
+                    if (attempt >= maxAttempts || !IsTransientConnectFailure(ex))
+                        throw;
+
+                    log.WriteWarning(
+                        $"\n  [{label}] connect attempt {attempt}/{maxAttempts} failed ({ex.Message}) — retrying...\n");
+                    System.Threading.Thread.Sleep(TimeSpan.FromSeconds(2));
+                }
+            }
+        }
+
+        private static bool IsTransientConnectFailure(Exception ex)
+        {
+            for (var e = ex; e != null; e = e.InnerException)
+            {
+                if (e is System.Net.Sockets.SocketException) return true;
+                if (e is SshOperationTimeoutException) return true;
+            }
+
+            return false;
+        }
+
+        /// <summary>
         /// Patches the director's cert chains via SSH.
         /// Returns true if a reboot is needed (either from new cert changes or a previous pending reboot).
         /// </summary>
-        private bool PatchDirector(LogWindow log, List<string> warnings)
+        private bool PatchDirector(JailbreakInputs inputs, LogWindow log, List<string> warnings)
         {
             if (!File.Exists($"{Constants.CertsFolder}/public.pem"))
             {
@@ -816,7 +900,7 @@ namespace Garry.Control4.Jailbreak.UI
                 return false;
             }
 
-            var macAddress = MacAddress.Text;
+            var macAddress = inputs.MacAddress;
             var localKeysFolder = $"{Constants.KeysFolder}/{macAddress}";
             if (!string.IsNullOrEmpty(macAddress))
             {
@@ -829,65 +913,75 @@ namespace Garry.Control4.Jailbreak.UI
 
             var anyModified = false;
             ScpClient scp = null;
+            SshClient ssh = null;
 
             try
             {
-                scp = new ScpClient(SshConnection());
+                // One SCP client (files) + one SSH client (commands), reused by every helper
+                // below instead of reconnecting per operation.
+                var connectionInfo = SshConnection(inputs);
+                scp = new ScpClient(connectionInfo);
+                ssh = new SshClient(connectionInfo);
 
-                log.WriteNormal("Connecting to director via SCP... ");
+                log.WriteNormal("Connecting to director via SSH/SCP... ");
                 try
                 {
-                    scp.Connect();
+                    ConnectWithRetries(scp, log, "SCP");
+                    ConnectWithRetries(ssh, log, "SSH");
                 }
                 catch (Exception)
                 {
                     log.WriteWarning("failed — attempting to restore SSH access\n");
 
                     log.WriteNormal("Restoring SSH password authentication... ");
-                    ApplySshRestoreExploit(GetWritableDriverId());
+                    ApplySshRestoreExploit(inputs, GetWritableDriverId(inputs));
                     log.WriteSuccess("done\n");
 
                     log.WriteNormal("Reloading SSH service... ");
-                    ReloadSshService();
+                    ReloadSshService(inputs);
                     log.WriteSuccess("done\n");
 
                     log.WriteNormal("Waiting for SSH to reload... ");
                     System.Threading.Thread.Sleep(1000);
                     log.WriteSuccess("done\n");
 
-                    log.WriteNormal("Reconnecting via SCP... ");
+                    log.WriteNormal("Reconnecting via SSH/SCP... ");
                     scp.Dispose();
-                    scp = new ScpClient(SshConnection());
-                    scp.Connect();
+                    ssh.Dispose();
+                    connectionInfo = SshConnection(inputs);
+                    scp = new ScpClient(connectionInfo);
+                    ssh = new SshClient(connectionInfo);
+                    ConnectWithRetries(scp, log, "SCP");
+                    ConnectWithRetries(ssh, log, "SSH");
                 }
 
                 log.WriteSuccess("connected\n");
 
                 _controllerCommonName = FetchControllerCommonName(scp);
 
-                SyncControllerClock(log, scp);
+                SyncControllerClock(log, ssh);
 
                 if (DownloadRootDeviceSshKeys(log, scp, localKeysFolder, warnings))
                 {
-                    PatchDirectorySshAuthorizedKeysFile(log, scp, localKeysFolder);
+                    PatchDirectorySshAuthorizedKeysFile(log, scp, ssh, localKeysFolder);
                 }
 
                 log.WriteNormal($"Reading {Constants.CertsFolder}/public.pem... ");
                 var localCert = File.ReadAllText($"{Constants.CertsFolder}/public.pem").Trim();
                 log.WriteSuccess("done\n");
 
-                anyModified |= PatchRemoteCertChain(log, scp, "/etc/openvpn/clientca-prod.pem", localCert);
+                anyModified |= PatchRemoteCertChain(log, scp, ssh, "/etc/openvpn/clientca-prod.pem", localCert);
                 anyModified |=
-                    PatchRemoteCertChain(log, scp, "/opt/control4/etc/ssl/certs/clientca-prod.pem", localCert);
-                anyModified |= PatchRemoteCertChain(log, scp, "/etc/mosquitto/certs/ca-chain.pem", localCert);
+                    PatchRemoteCertChain(log, scp, ssh, "/opt/control4/etc/ssl/certs/clientca-prod.pem", localCert);
+                anyModified |= PatchRemoteCertChain(log, scp, ssh, "/etc/mosquitto/certs/ca-chain.pem", localCert);
 
-                PatchControllerApiPem(log, scp);
+                PatchControllerApiPem(log, scp, ssh);
 
                 if (anyModified)
                 {
                     // Write reboot marker — /tmp is cleared on reboot
                     log.WriteTrace("Writing reboot marker...\n");
-                    UploadFile(scp, Constants.RebootMarkerPath, DateTime.UtcNow.ToString("o"));
+                    UploadFile(scp, ssh, Constants.RebootMarkerPath, DateTime.UtcNow.ToString("o"));
                 }
                 else
                 {
@@ -907,6 +1001,7 @@ namespace Garry.Control4.Jailbreak.UI
             finally
             {
                 scp?.Dispose();
+                ssh?.Dispose();
             }
 
             return anyModified;
@@ -924,7 +1019,7 @@ namespace Garry.Control4.Jailbreak.UI
         /// regenerated. The production cert shares the CN but is issued by "Control4 Primary Root CA"
         /// (Subject != Issuer), so it survives the filter.
         /// </summary>
-        private static void PatchControllerApiPem(LogWindow log, ScpClient scp)
+        private static void PatchControllerApiPem(LogWindow log, ScpClient scp, SshClient ssh)
         {
             const string remoteFile = "/opt/control4/etc/ssl/certs/api.pem";
             var localPemPath = $"{Constants.CertsFolder}/jailbreak_api.pem";
@@ -967,7 +1062,7 @@ namespace Garry.Control4.Jailbreak.UI
 
             var backupFilename = $"api.pem.{DateTime.Now:yyyy-dd-M--HH-mm-ss}.backup";
             log.WriteNormal($"  Saving remote backup to /opt/control4/etc/ssl/certs/{backupFilename}... ");
-            UploadFile(scp, $"/opt/control4/etc/ssl/certs/{backupFilename}", remotePem);
+            UploadFile(scp, ssh, $"/opt/control4/etc/ssl/certs/{backupFilename}", remotePem);
             log.WriteSuccess("done\n");
 
             log.WriteNormal($"  Saving local backup to {Constants.CertsFolder}/{backupFilename}... ");
@@ -975,16 +1070,16 @@ namespace Garry.Control4.Jailbreak.UI
             log.WriteSuccess("done\n");
 
             log.WriteNormal($"  Updating {remoteFile}... ");
-            UploadFile(scp, remoteFile, rebuilt);
+            UploadFile(scp, ssh, remoteFile, rebuilt);
             log.WriteSuccess("done\n");
 
             log.WriteNormal("  Restarting mosquitto-jwt-auth... ");
-            using (var ssh = new SshClient(scp.ConnectionInfo))
+            // Plugin loads the PEM only at startup; sysmand respawns the process within ~10s.
+            var restartResult = ssh.RunCommand("pidof mosquitto-jwt-auth | xargs -r kill -9");
+            if (restartResult.ExitStatus != 0)
             {
-                ssh.Connect();
-                // Plugin loads the PEM only at startup; sysmand respawns the process within ~10s.
-                ssh.RunCommand("pidof mosquitto-jwt-auth | xargs -r kill -9");
-                ssh.Disconnect();
+                log.WriteError($"failed (exit {restartResult.ExitStatus})\n");
+                return;
             }
 
             log.WriteSuccess("done\n");
@@ -1022,7 +1117,8 @@ namespace Garry.Control4.Jailbreak.UI
         /// <summary>
         /// Returns true if the cert chain was actually modified, false if already patched or the file doesn't exist.
         /// </summary>
-        private static bool PatchRemoteCertChain(LogWindow log, ScpClient scp, string remoteFile, string localCert)
+        private static bool PatchRemoteCertChain(LogWindow log, ScpClient scp, SshClient ssh, string remoteFile,
+            string localCert)
         {
             log.WriteNormal($"Patching {remoteFile}:\n");
 
@@ -1051,7 +1147,7 @@ namespace Garry.Control4.Jailbreak.UI
             var backupFilename = $"{fileName}.{DateTime.Now:yyyy-dd-M--HH-mm-ss}.backup";
 
             log.WriteNormal($"  Saving remote backup to {directory}/{backupFilename}... ");
-            UploadFile(scp, $"{directory}/{backupFilename}", remoteCertChain);
+            UploadFile(scp, ssh, $"{directory}/{backupFilename}", remoteCertChain);
             log.WriteSuccess("done\n");
 
             log.WriteNormal($"  Saving local backup to {Constants.CertsFolder}/{backupFilename}... ");
@@ -1061,7 +1157,7 @@ namespace Garry.Control4.Jailbreak.UI
             remoteCertChain = DedupeX509CertChain(dedupedRemoteCertChain + "\n" + localCert);
 
             log.WriteNormal($"  Updating {remoteFile}... ");
-            UploadFile(scp, remoteFile, remoteCertChain);
+            UploadFile(scp, ssh, remoteFile, remoteCertChain);
             log.WriteSuccess("done\n");
 
             return true;
@@ -1154,7 +1250,8 @@ namespace Garry.Control4.Jailbreak.UI
             return keysExist;
         }
 
-        private static void PatchDirectorySshAuthorizedKeysFile(LogWindow log, ScpClient scp, string localKeysFolder)
+        private static void PatchDirectorySshAuthorizedKeysFile(LogWindow log, ScpClient scp, SshClient ssh,
+            string localKeysFolder)
         {
             var localPubKeyFiles = new List<string>
             {
@@ -1204,7 +1301,7 @@ namespace Garry.Control4.Jailbreak.UI
             var backupSuffix = $".{DateTime.Now:yyyy-dd-M--HH-mm-ss}.backup";
 
             log.WriteNormal($"  Saving remote backup to {remoteAuthorizedKeysFile}{backupSuffix}... ");
-            UploadFile(scp, $"{remoteAuthorizedKeysFile}{backupSuffix}", authorizedKeys);
+            UploadFile(scp, ssh, $"{remoteAuthorizedKeysFile}{backupSuffix}", authorizedKeys);
             log.WriteSuccess("done\n");
 
             log.WriteNormal($"  Saving local backup to {localAuthorizedKeysFile}{backupSuffix}... ");
@@ -1220,24 +1317,23 @@ namespace Garry.Control4.Jailbreak.UI
             }
 
             log.WriteNormal("  Updating remote authorized_keys file... ");
-            UploadFile(scp, remoteAuthorizedKeysFile, authorizedKeys);
+            UploadFile(scp, ssh, remoteAuthorizedKeysFile, authorizedKeys);
             log.WriteSuccess("done\n");
         }
 
-        private void RebootDirector(LogWindow log, List<string> warnings)
+        private void RebootDirector(JailbreakInputs inputs, LogWindow log, List<string> warnings)
         {
             try
             {
                 log.WriteNormal("Connecting to director... ");
 
-                using (var ssh = new SshClient(SshConnection()))
+                using (var ssh = new SshClient(SshConnection(inputs)))
                 {
-                    ssh.Connect();
+                    ConnectWithRetries(ssh, log, "SSH");
                     log.WriteSuccess("connected\n");
 
                     log.WriteNormal("Running reboot command... ");
                     ssh.RunCommand("nohup sh -c '( sleep 2 ; reboot )' >/dev/null 2>&1 &");
-                    ssh.Disconnect();
                     log.WriteSuccess("done\n");
 
                     warnings.Add(
@@ -1255,39 +1351,40 @@ namespace Garry.Control4.Jailbreak.UI
         /// Checks the controller's clock and corrects it if it's more than 24 hours off.
         /// A wrong clock (e.g. dead CMOS battery) causes TLS certificate validation failures.
         /// </summary>
-        private static void SyncControllerClock(LogWindow log, ScpClient scp)
+        private static void SyncControllerClock(LogWindow log, SshClient ssh)
         {
             try
             {
-                using (var ssh = new SshClient(scp.ConnectionInfo))
+                var result = ssh.RunCommand("date +%s");
+                if (result.ExitStatus != 0 || !long.TryParse(result.Result.Trim(), out var remoteEpoch))
                 {
-                    ssh.Connect();
+                    return;
+                }
 
-                    var result = ssh.RunCommand("date +%s");
-                    if (result.ExitStatus != 0 || !long.TryParse(result.Result.Trim(), out var remoteEpoch))
+                var localEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
+                var drift = Math.Abs(localEpoch - remoteEpoch);
+
+                if (drift > 120) // More than 2 minutes off
+                {
+                    var utcNow = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
+                    log.WriteNormal(
+                        $"Controller clock is off by {TimeSpan.FromSeconds(drift):d'd 'h'h 'm'm'} — correcting... ");
+                    var dateResult = ssh.RunCommand($"date -u -s \"{utcNow}\"");
+                    if (dateResult.ExitStatus != 0)
                     {
-                        ssh.Disconnect();
-                        return;
+                        log.WriteWarning($"failed (exit {dateResult.ExitStatus})\n");
                     }
-
-                    var localEpoch = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
-                    var drift = Math.Abs(localEpoch - remoteEpoch);
-
-                    if (drift > 120) // More than 2 minutes off
+                    else
                     {
-                        var utcNow = DateTime.UtcNow.ToString("yyyy-MM-dd HH:mm:ss");
-                        log.WriteNormal(
-                            $"Controller clock is off by {TimeSpan.FromSeconds(drift):d'd 'h'h 'm'm'} — correcting... ");
-                        ssh.RunCommand($"date -u -s \"{utcNow}\"");
                         log.WriteSuccess("done\n");
                     }
-
-                    log.WriteTrace("Syncing hardware clock... ");
-                    ssh.RunCommand("hwclock -w 2>/dev/null");
-                    log.WriteTrace("done\n");
-
-                    ssh.Disconnect();
                 }
+
+                log.WriteTrace("Syncing hardware clock... ");
+                var hwclockResult = ssh.RunCommand("hwclock -w 2>/dev/null");
+                log.WriteTrace(hwclockResult.ExitStatus != 0
+                    ? $"(failed with exit {hwclockResult.ExitStatus})\n"
+                    : "done\n");
             }
             catch
             {
@@ -1561,15 +1658,14 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
-        private static void UploadFile(ScpClient scp, string remoteFilename, string fileContents)
+        private static void UploadFile(ScpClient scp, SshClient ssh, string remoteFilename, string fileContents)
         {
             var remoteDirectory = Path.GetDirectoryName(remoteFilename);
 
-            using (var ssh = new SshClient(scp.ConnectionInfo))
+            var mkdirResult = ssh.RunCommand($"mkdir -p {remoteDirectory}");
+            if (mkdirResult.ExitStatus != 0)
             {
-                ssh.Connect();
-                ssh.RunCommand($"mkdir -p {remoteDirectory}");
-                ssh.Disconnect();
+                throw new Exception($"Failed to create directory {remoteDirectory}: exit {mkdirResult.ExitStatus}");
             }
 
             using (var stream = new MemoryStream())
@@ -1772,14 +1868,14 @@ namespace Garry.Control4.Jailbreak.UI
             return new System.Net.Http.HttpClient(handler);
         }
 
-        private string GetWritableDriverId()
+        private string GetWritableDriverId(JailbreakInputs inputs)
         {
             using (var client = CreateHttpClient())
             {
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken(inputs)}");
 
-                var response = client.GetAsync($"https://{IpAddress.Text}:443/api/v1/items").Result;
+                var response = client.GetAsync($"https://{inputs.IpAddress}:443/api/v1/items").Result;
                 response.EnsureSuccessStatusCode();
 
                 var content = response.Content.ReadAsStringAsync().Result;
@@ -1811,7 +1907,7 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
-        private void ApplySshRestoreExploit(string driverId)
+        private void ApplySshRestoreExploit(JailbreakInputs inputs, string driverId)
         {
             const string luaExploit = @"-- Only modify sshd_config to enable password authentication
 local ssh_path = '/etc/ssh/sshd_config'
@@ -1837,7 +1933,7 @@ f:close()
             using (var client = CreateHttpClient())
             {
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken(inputs)}");
 
                 var serializer = new JavaScriptSerializer();
                 var commandData = new
@@ -1853,25 +1949,25 @@ f:close()
                 var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
 
                 var response = client
-                    .PostAsync($"https://{IpAddress.Text}:443/api/v1/items/{driverId}/commands", content).Result;
+                    .PostAsync($"https://{inputs.IpAddress}:443/api/v1/items/{driverId}/commands", content).Result;
                 response.EnsureSuccessStatusCode();
             }
         }
 
-        private void ReloadSshService()
+        private void ReloadSshService(JailbreakInputs inputs)
         {
             using (var client = CreateHttpClient())
             {
                 client.DefaultRequestHeaders.Add("Accept", "application/json");
-                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken()}");
+                client.DefaultRequestHeaders.Add("Authorization", $"Bearer {GetJwtToken(inputs)}");
 
                 var response = client
-                    .GetAsync($"https://{IpAddress.Text}:443/api/v1/sysman/ssh?command=pkill%20-HUP%20sshd").Result;
+                    .GetAsync($"https://{inputs.IpAddress}:443/api/v1/sysman/ssh?command=pkill%20-HUP%20sshd").Result;
                 response.EnsureSuccessStatusCode();
             }
         }
 
-        private string GetJwtToken()
+        private string GetJwtToken(JailbreakInputs inputs)
         {
             if (!string.IsNullOrEmpty(_cachedJwtToken))
             {
@@ -1923,7 +2019,7 @@ f:close()
                 var json = serializer.Serialize(requestData);
                 var content = new System.Net.Http.StringContent(json, Encoding.UTF8, "application/json");
 
-                var response = client.PostAsync($"https://{IpAddress.Text}:443/api/v1/jwt", content).Result;
+                var response = client.PostAsync($"https://{inputs.IpAddress}:443/api/v1/jwt", content).Result;
                 var responseContent = response.Content.ReadAsStringAsync().Result;
 
                 if (!response.IsSuccessStatusCode)
