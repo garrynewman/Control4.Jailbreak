@@ -218,49 +218,45 @@ namespace Garry.Control4.Jailbreak.UI
                     return;
                 }
 
-                // 3. If another laptop already jailbroke this director with a reusable bundle,
+                // 3. Always apply local Composer settings, independently of Director reuse.
+                var configFolder = GetComposerConfigFolder();
+                if (!PatchComposerSettings(log, configFolder))
+                    return;
+                ConfigureSplitIoBlock(log, checkBoxBlockSplitIo.Checked);
+
+                // 4. If another laptop already jailbroke this director with a reusable bundle,
                 // restore that cert material before generating anything locally.
                 log.WriteHeader("EXISTING JAILBREAK");
                 var restoredExistingJailbreak =
                     TryRestoreExistingJailbreakBundle(log, warnings, out var restoredExistingJailbreakRebootPending);
 
-                // 4. Ensure root CA certs exist (idempotent via schema version)
+                // 5. Ensure root CA certs exist (idempotent via schema version)
                 log.WriteHeader("ROOT CA");
                 if (!EnsureRootCaCerts(log))
                     return;
 
-                // 5. Generate Composer cert (always regenerate - short-lived)
+                // 6. Generate Composer cert (always regenerate - short-lived)
                 log.WriteHeader("COMPOSER CERTIFICATE");
                 if (!GenerateComposerCert(log))
                     return;
 
-                // 6. Ensure MQTT JWT signing keypair exists (OS 4.2+)
+                // 7. Ensure MQTT JWT signing keypair exists (OS 4.2+)
                 log.WriteHeader("JWT SIGNING KEYPAIR");
                 if (!EnsureJwtSigningKeyPair(log))
                     return;
 
-                // 7. Patch ComposerPro.exe.config (idempotent)
-                log.WriteHeader("PATCH CONFIG");
-                PatchConfigFile(log);
-
-                // 8-12. Deploy files + settings
+                // 8. Always deploy the Composer certificates, including after bundle reuse.
                 log.WriteHeader("DEPLOY FILES");
-
-                var configFolder = GetComposerConfigFolder();
                 DeployComposerFiles(log, configFolder);
-                WriteFeatureFlags(log, configFolder);
-                UpdateUpdateManagerSettings(log, configFolder);
-                ConfigureSplitIoBlock(log, checkBoxBlockSplitIo.Checked);
-                EnsureDealerAccount(log, configFolder);
-                WriteLicenseFile(log, configFolder);
+                log.WriteSuccess("Local Composer patching complete.\n");
 
-                // 13. Patch Director (SSH)
+                // 9. Patch Director (SSH)
                 log.WriteHeader("PATCH DIRECTOR");
 
                 bool directorModified;
                 if (restoredExistingJailbreak)
                 {
-                    log.WriteTrace("Director reusable jailbreak bundle restored - skipping director patch.\n");
+                    log.WriteTrace("Director reusable jailbreak bundle restored - skipping director patch only.\n");
                     directorModified = restoredExistingJailbreakRebootPending;
                 }
                 else
@@ -284,7 +280,7 @@ namespace Garry.Control4.Jailbreak.UI
                 log.WriteHeader("JWT CACHE");
                 WriteJwtCache(log, configFolder, _controllerCommonName);
 
-                // 12. Reboot Director if cert chains were modified or a previous reboot is pending
+                // 10. Reboot Director if cert chains were modified or a previous reboot is pending
                 if (directorModified)
                 {
                     log.WriteNormal("Director needs a reboot to apply certificate changes.\n");
@@ -424,18 +420,12 @@ namespace Garry.Control4.Jailbreak.UI
         {
             rebootPending = false;
 
-            if (LocalJailbreakBundleComplete())
-            {
-                log.WriteTrace("Local reusable jailbreak bundle already exists - skipping remote restore.\n");
-                return false;
-            }
-
-            log.WriteNormal("Local reusable jailbreak bundle is incomplete - checking director.\n");
+            log.WriteNormal("Checking director for reusable jailbreak cert material.\n");
 
             ScpClient scp = null;
             try
             {
-                scp = ConnectDirectorScp(log);
+                scp = ConnectDirectorScp(log, restoreSshAccess: false);
 
                 if (!RemoteJailbreakBundleExists(log, scp))
                 {
@@ -513,6 +503,13 @@ namespace Garry.Control4.Jailbreak.UI
 
                     log.WriteTrace("not present\n");
                 }
+            }
+
+            var schemaVersion = Encoding.UTF8.GetString(downloaded[".schema-version"]).Trim();
+            if (schemaVersion != Constants.CertSchemaVersion.ToString())
+            {
+                log.WriteWarning("Reusable bundle schema does not match - continuing with normal certificate setup.\n");
+                return false;
             }
 
             Directory.CreateDirectory(Constants.CertsFolder);
@@ -676,11 +673,11 @@ namespace Garry.Control4.Jailbreak.UI
             }
 
             File.WriteAllText($"{Constants.CertsFolder}/ext.conf",
-                @"[v3_client]\n" +
-                $@"subjectAltName=DNS:{Constants.CertificateCn}\n" +
-                @"extendedKeyUsage=clientAuth,serverAuth\n" +
-                @"basicConstraints=CA:FALSE\n" +
-                @"keyUsage=digitalSignature,keyEncipherment");
+                "[v3_client]\n" +
+                $"subjectAltName=DNS:{Constants.CertificateCn}\n" +
+                "extendedKeyUsage=clientAuth,serverAuth\n" +
+                "basicConstraints=CA:FALSE\n" +
+                "keyUsage=digitalSignature,keyEncipherment\n");
 
             log.WriteNormal("Signing certificate...\n");
             exitCode = RunProcessPrintOutput(
@@ -770,13 +767,26 @@ namespace Garry.Control4.Jailbreak.UI
         // Config file patching (dead proxy + bypasslist)
         // -------------------------------------------------------------------
 
-        private void PatchConfigFile(LogWindow log)
+        private bool PatchComposerSettings(LogWindow log, string configFolder)
+        {
+            log.WriteHeader("PATCH COMPOSER");
+            if (!PatchConfigFile(log))
+                return false;
+
+            WriteFeatureFlags(log, configFolder);
+            EnsureDealerAccount(log, configFolder);
+            WriteLicenseFile(log, configFolder);
+            UpdateUpdateManagerSettings(log, configFolder);
+            return true;
+        }
+
+        private bool PatchConfigFile(LogWindow log)
         {
             var configPath = Path.Combine(ComposerInstallDir, "ComposerPro.exe.config");
             if (!File.Exists(configPath))
             {
                 log.WriteError($"Config file not found: {configPath}\n");
-                return;
+                return false;
             }
 
             log.WriteNormal($"Patching {configPath}...\n");
@@ -785,11 +795,17 @@ namespace Garry.Control4.Jailbreak.UI
             {
                 var xmlDoc = XDocument.Load(configPath);
 
-                var systemNet = xmlDoc.Root?.Element("system.net");
+                if (xmlDoc.Root?.Name != "configuration")
+                {
+                    log.WriteError("Could not find the <configuration> root in the configuration file.\n");
+                    return false;
+                }
+
+                var systemNet = xmlDoc.Root.Element("system.net");
                 if (systemNet == null)
                 {
-                    log.WriteError("Could not find the <system.net> node in the configuration file.\n");
-                    return;
+                    systemNet = new XElement("system.net");
+                    xmlDoc.Root.Add(systemNet);
                 }
 
                 var desiredProxy = new XElement("defaultProxy",
@@ -813,7 +829,7 @@ namespace Garry.Control4.Jailbreak.UI
                     XNode.DeepEquals(existingProxy, desiredProxy))
                 {
                     log.WriteTrace("Config file already patched.\n");
-                    return;
+                    return true;
                 }
 
                 existingProxy?.Remove();
@@ -831,10 +847,12 @@ namespace Garry.Control4.Jailbreak.UI
                 xmlDoc.Save(configPath);
 
                 log.WriteSuccess("Config file patched.\n");
+                return true;
             }
             catch (Exception ex)
             {
                 log.WriteError($"Config patch error: {ex.Message}\n");
+                return false;
             }
         }
 
@@ -997,7 +1015,7 @@ namespace Garry.Control4.Jailbreak.UI
             return sshConnectionInfo;
         }
 
-        private ScpClient ConnectDirectorScp(LogWindow log)
+        private ScpClient ConnectDirectorScp(LogWindow log, bool restoreSshAccess = true)
         {
             var scp = new ScpClient(SshConnection());
 
@@ -1010,12 +1028,14 @@ namespace Garry.Control4.Jailbreak.UI
             }
             catch (Exception)
             {
+                scp.Dispose();
+                if (!restoreSshAccess)
+                    throw;
+
                 log.WriteWarning("failed - attempting to restore SSH access\n");
 
                 try
                 {
-                    scp.Dispose();
-
                     log.WriteNormal("Restoring SSH password authentication... ");
                     ApplySshRestoreExploit(GetWritableDriverId());
                     log.WriteSuccess("done\n");
