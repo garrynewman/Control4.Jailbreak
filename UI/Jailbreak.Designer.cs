@@ -45,7 +45,7 @@ namespace Garry.Control4.Jailbreak.UI
             this.labelMacAddress = new System.Windows.Forms.Label();
             this.MacAddress = new System.Windows.Forms.TextBox();
             this.checkBoxBlockSplitIo = new System.Windows.Forms.CheckBox();
-            this.buttonJailbreak = new System.Windows.Forms.Button();
+            this.buttonJailbreak = new SplitButton();
             this.labelManagementPack = new System.Windows.Forms.Label();
             this.labelManagementPackDesc = new System.Windows.Forms.Label();
             this.buttonInstallMgmtPack = new System.Windows.Forms.Button();
@@ -421,7 +421,7 @@ namespace Garry.Control4.Jailbreak.UI
         private System.Windows.Forms.Label labelMacAddress;
         public System.Windows.Forms.TextBox MacAddress;
         public System.Windows.Forms.CheckBox checkBoxBlockSplitIo;
-        private System.Windows.Forms.Button buttonJailbreak;
+        private SplitButton buttonJailbreak;
         private System.Windows.Forms.Label labelManagementPack;
         private System.Windows.Forms.Label labelManagementPackDesc;
         private System.Windows.Forms.Button buttonInstallMgmtPack;

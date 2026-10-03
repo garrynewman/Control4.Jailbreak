@@ -7,6 +7,9 @@
     <Setting Name="BlockSplitIoChecked" Type="System.Boolean" Scope="User">
       <Value Profile="(Default)">True</Value>
     </Setting>
+    <Setting Name="LastActionMode" Type="System.Int32" Scope="User">
+      <Value Profile="(Default)">0</Value>
+    </Setting>
     <Setting Name="ComposerInstallDir" Type="System.String" Scope="User">
       <Value Profile="(Default)" />
     </Setting>

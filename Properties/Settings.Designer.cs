@@ -36,6 +36,18 @@ namespace Garry.Control4.Jailbreak.Properties {
 
         [global::System.Configuration.UserScopedSettingAttribute()]
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("0")]
+        public int LastActionMode {
+            get {
+                return ((int)(this["LastActionMode"]));
+            }
+            set {
+                this["LastActionMode"] = value;
+            }
+        }
+
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
         [global::System.Configuration.DefaultSettingValueAttribute("")]
         public string ComposerInstallDir {
             get {
