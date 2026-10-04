@@ -2,7 +2,7 @@ namespace Garry.Control4.Jailbreak
 {
     public static class Constants
     {
-        public const string Version = "8.1";
+        public const string Version = "9";
 
         /// <summary>
         /// The cert for composer needs to be named cacert-*.pem
@@ -56,12 +56,12 @@ namespace Garry.Control4.Jailbreak
         /// <summary>
         /// The OS version this tool was tested against.
         /// </summary>
-        public const string TargetOsVersion = @"4.2.0.753182";
+        public const string TargetOsVersion = @"4.2.1.758346";
 
         /// <summary>
         /// The Composer version this tool was tested against.
         /// </summary>
-        public const string TargetComposerVersion = @"2026.3.18";
+        public const string TargetComposerVersion = @"2026.9.16";
 
         /// <summary>
         /// The file path to the Windows Hosts file, typically used for mapping hostnames to IP addresses.
@@ -73,6 +73,15 @@ namespace Garry.Control4.Jailbreak
         /// redirecting "split.io" and "sdk.split.io" to localhost.
         /// </summary>
         public const string BlockSplitIoHostsEntry = @"127.0.0.1  split.io sdk.split.io";
+
+        /// <summary>
+        /// Host entry blocking the Control4 cloud service locator. When apis.control4.com is
+        /// unreachable, Composer sets OnlineServicesAvailable=false and validates the Composer
+        /// client cert (composer.p12) locally against the deployed cacert instead of against the
+        /// cloud — which lets the jailbreak's self-signed cert pass and suppresses the
+        /// "Register Composer" prompt. apis-beta covers the beta environment.
+        /// </summary>
+        public const string BlockCloudLocatorHostsEntry = @"127.0.0.1  apis.control4.com apis-beta.control4.com";
 
         /// <summary>
         /// The SOAP endpoint for the Control4 Updates service that provides package listings.
@@ -87,6 +96,15 @@ namespace Garry.Control4.Jailbreak
         /// </summary>
         public const string UpdatesExperienceUrl =
             "https://services.control4.com/Updates2x-experience/v2_0/Updates.asmx";
+
+        /// <summary>
+        /// The "external" Updates SOAP endpoint. Beta / not-yet-GA OS builds (and their
+        /// management packs) are published only here, not on the main Updates2x endpoint.
+        /// The management pack downloader falls back to this when a version isn't found on
+        /// the main service. Package download URLs come from the SOAP response itself.
+        /// </summary>
+        public const string UpdatesExternalUrl =
+            "https://services.control4.com/Updates2x-external/v2_0/Updates.asmx";
 
         /// <summary>
         /// The XML namespace used in SOAP requests/responses for the Updates service.
@@ -104,5 +122,86 @@ namespace Garry.Control4.Jailbreak
         /// cleared on reboot, letting us detect whether a pending reboot has been completed.
         /// </summary>
         public const string RebootMarkerPath = "/tmp/.jailbreak-reboot-pending";
+
+        // -------------------------------------------------------------------
+        // Controller (director) file paths — shared by the SSH patch/unpatch code
+        // -------------------------------------------------------------------
+
+        /// <summary>Directory holding the controller's SSL certificates.</summary>
+        public const string ControllerSslCertsDir = "/opt/control4/etc/ssl/certs";
+
+        /// <summary>Controller API cert bundle the mosquitto-jwt-auth plugin reads.</summary>
+        public const string ControllerApiPem = ControllerSslCertsDir + "/api.pem";
+
+        /// <summary>Controller cert used to derive the JWT CommonName claim.</summary>
+        public const string ControllerAgentPem = ControllerSslCertsDir + "/agent.pem";
+
+        /// <summary>Fallback controller cert for the JWT CommonName claim.</summary>
+        public const string ControllerClientPem = ControllerSslCertsDir + "/client.pem";
+
+        /// <summary>
+        /// OS 4.2.1 device cert location for the JWT CommonName claim. On 4.2.1 agent.pem is a
+        /// dangling symlink and the device cert moved here (note: /opt/control4/etc/certs, not
+        /// the ssl/certs dir). Tried after the legacy paths.
+        /// </summary>
+        public const string ControllerCvmDevicePem = "/opt/control4/etc/certs/cvm-device.pem";
+
+        /// <summary>Client CA chain under the Control4 SSL directory.</summary>
+        public const string ControllerClientCaProdPem = ControllerSslCertsDir + "/clientca-prod.pem";
+
+        /// <summary>OpenVPN client CA chain.</summary>
+        public const string OpenVpnClientCaProdPem = "/etc/openvpn/clientca-prod.pem";
+
+        /// <summary>Mosquitto CA chain the controller validates the Composer cert against.</summary>
+        public const string MosquittoCaChainPem = "/etc/mosquitto/certs/ca-chain.pem";
+
+        /// <summary>root user's authorized_keys on the controller.</summary>
+        public const string ControllerAuthorizedKeys = "/home/root/.ssh/authorized_keys";
+
+        /// <summary>Directory holding the controller's SSH host keys.</summary>
+        public const string ControllerSshDir = "/etc/ssh";
+
+        // -------------------------------------------------------------------
+        // Process names
+        // -------------------------------------------------------------------
+
+        /// <summary>Composer Pro process name (without .exe).</summary>
+        public const string ComposerProcessName = "ComposerPro";
+
+        /// <summary>Controller MQTT JWT auth plugin process name.</summary>
+        public const string MosquittoJwtAuthProcess = "mosquitto-jwt-auth";
+
+        // -------------------------------------------------------------------
+        // Composer / jailbreak file names
+        // -------------------------------------------------------------------
+
+        /// <summary>Composer's app config, patched in the install directory.</summary>
+        public const string ComposerConfigFileName = "ComposerPro.exe.config";
+
+        /// <summary>Composer client cert (PKCS#12) deployed under %AppData%\Control4\Composer.</summary>
+        public const string ComposerP12FileName = "composer.p12";
+
+        /// <summary>Jailbreak CA public cert (Certs folder) appended to the controller cert chains.</summary>
+        public const string CaPublicPemFileName = "public.pem";
+
+        /// <summary>Jailbreak API cert (Certs folder) appended to the controller's api.pem.</summary>
+        public const string JailbreakApiPemFileName = "jailbreak_api.pem";
+
+        /// <summary>Composer feature-flag cache file (under the Composer config folder).</summary>
+        public const string FeaturesConfigFileName = "FeaturesConfiguration.json";
+
+        /// <summary>Fake dealer-account file at %AppData%\Control4.</summary>
+        public const string DealerAccountFileName = "dealeraccount.xml";
+
+        /// <summary>License marker file at %AppData%\Control4.</summary>
+        public const string LicenseFileName = "license.xml";
+
+        /// <summary>Update Manager settings file (holds the update URL list).</summary>
+        public const string UpdateManagerSettingsFileName = "ComposerUpdateManagerSettings.Config";
+
+        /// <summary>Controller SSH host public keys used as authorized keys.</summary>
+        public const string SshHostRsaPubKey = "ssh_host_rsa_key.pub";
+
+        public const string SshHostEd25519PubKey = "ssh_host_ed25519_key.pub";
     }
 }

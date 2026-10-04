@@ -28,6 +28,14 @@ namespace Garry.Control4.Jailbreak.UI
         private readonly Timer _connectionTimer = new Timer { Interval = 10000 };
         private readonly Timer _debounceTimer = new Timer { Interval = 800 };
 
+        // Split-button action mode. The arrow opens the menu to pick a mode; the button runs it.
+        private enum ActionMode { Jailbreak = 0, Ssh = 1, Revert = 2 }
+        private ActionMode _mode = ActionMode.Jailbreak;
+        private System.Windows.Forms.ContextMenuStrip _modeMenu;
+        private System.Windows.Forms.ToolStripMenuItem _miJailbreak;
+        private System.Windows.Forms.ToolStripMenuItem _miSsh;
+        private System.Windows.Forms.ToolStripMenuItem _miRevert;
+
         // Composer install path detection
         public string ComposerInstallDir { get; private set; }
 
@@ -119,6 +127,7 @@ namespace Garry.Control4.Jailbreak.UI
                 _debounceTimer.Stop();
                 _ = CheckConnection();
             };
+            SetupModeUi();
             Load += Jailbreak_Load;
         }
 
@@ -127,6 +136,12 @@ namespace Garry.Control4.Jailbreak.UI
             _loading = true;
 
             checkBoxBlockSplitIo.Checked = Properties.Settings.Default.BlockSplitIoChecked;
+
+            var savedMode = Properties.Settings.Default.LastActionMode;
+            _mode = System.Enum.IsDefined(typeof(ActionMode), savedMode)
+                ? (ActionMode)savedMode
+                : ActionMode.Jailbreak;
+            UpdateActionUi();
 
             // Restore cached input values before auto-derivation kicks in
             var settings = Properties.Settings.Default;
@@ -169,7 +184,22 @@ namespace Garry.Control4.Jailbreak.UI
 
         private async void DoJailbreak(object sender, EventArgs e)
         {
-            var log = new LogWindow(_mainWindow, "Jailbreak");
+            var actionTitle = ActionTitle(_mode);
+
+            // Revert is destructive, so confirm it first.
+            if (_mode == ActionMode.Revert)
+            {
+                var confirm = MessageBox.Show(FindForm(),
+                    "Revert the jailbreak?\n\n" +
+                    "This deletes the jailbreak's local files and hosts entries and, if the " +
+                    "controller is reachable over SSH, strips the injected certificates and SSH " +
+                    "key from the director, then offers to reboot it.\n\nContinue?",
+                    actionTitle, MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+                if (confirm != DialogResult.Yes)
+                    return;
+            }
+
+            var log = new LogWindow(_mainWindow, actionTitle);
             var warnings = new List<string>();
 
             // Read controls here on the UI thread; the worker must not touch them.
@@ -185,12 +215,187 @@ namespace Garry.Control4.Jailbreak.UI
             _connectionTimer.Stop();
             try
             {
-                await Task.Run(() => JailbreakWorker(inputs, log, warnings));
+                await Task.Run(() =>
+                {
+                    switch (_mode)
+                    {
+                        case ActionMode.Ssh:
+                            SshSetupWorker(inputs, log, warnings);
+                            break;
+                        case ActionMode.Revert:
+                            UnjailbreakWorker(inputs, log, warnings);
+                            break;
+                        default:
+                            JailbreakWorker(inputs, log, warnings);
+                            break;
+                    }
+                });
             }
             finally
             {
                 buttonJailbreak.Enabled = true;
                 _connectionTimer.Start();
+            }
+        }
+
+        // -------------------------------------------------------------------
+        // Mode selector (Jailbreak / SSH Access / Revert)
+        // -------------------------------------------------------------------
+
+        private static string ActionTitle(ActionMode mode)
+        {
+            switch (mode)
+            {
+                case ActionMode.Ssh: return "Set Up SSH Access";
+                case ActionMode.Revert: return "Revert";
+                default: return "Jailbreak";
+            }
+        }
+
+        private void SetupModeUi()
+        {
+            _miJailbreak = new System.Windows.Forms.ToolStripMenuItem(
+                "Jailbreak", null, (s, e) => SetMode(ActionMode.Jailbreak));
+            _miSsh = new System.Windows.Forms.ToolStripMenuItem(
+                "SSH Access", null, (s, e) => SetMode(ActionMode.Ssh));
+            _miRevert = new System.Windows.Forms.ToolStripMenuItem(
+                "Revert", null, (s, e) => SetMode(ActionMode.Revert));
+            _modeMenu = new System.Windows.Forms.ContextMenuStrip();
+            _modeMenu.Items.Add(_miJailbreak);
+            _modeMenu.Items.Add(_miSsh);
+            _modeMenu.Items.Add(_miRevert);
+
+            // buttonJailbreak is a SplitButton: the right-hand arrow zone opens the mode menu,
+            // the rest runs the current mode. Reserve right padding so the label clears the arrow.
+            buttonJailbreak.DropDownMenu = _modeMenu;
+            buttonJailbreak.Padding = new System.Windows.Forms.Padding(
+                buttonJailbreak.Padding.Left, buttonJailbreak.Padding.Top,
+                SplitButton.ArrowZoneWidth, buttonJailbreak.Padding.Bottom);
+
+            toolTip.SetToolTip(buttonJailbreak,
+                "Click to run the selected action.\r\n" +
+                "Click the arrow to switch between Jailbreak, SSH Access and Revert.");
+
+            UpdateActionUi();
+        }
+
+        private void SetMode(ActionMode mode)
+        {
+            _mode = mode;
+            Properties.Settings.Default.LastActionMode = (int)mode;
+            Properties.Settings.Default.Save();
+            UpdateActionUi();
+        }
+
+        private void UpdateActionUi()
+        {
+            string label;
+            switch (_mode)
+            {
+                case ActionMode.Ssh: label = " Set Up SSH"; break;
+                case ActionMode.Revert: label = " Revert"; break;
+                default: label = " Jailbreak"; break;
+            }
+
+            buttonJailbreak.Text = label;
+
+            if (_miJailbreak != null) _miJailbreak.Checked = _mode == ActionMode.Jailbreak;
+            if (_miSsh != null) _miSsh.Checked = _mode == ActionMode.Ssh;
+            if (_miRevert != null) _miRevert.Checked = _mode == ActionMode.Revert;
+
+            // The split.io block only applies to a full jailbreak.
+            checkBoxBlockSplitIo.Visible = _mode == ActionMode.Jailbreak;
+        }
+
+        // -------------------------------------------------------------------
+        // SSH-only mode: set up / remove just root SSH access to the controller
+        // -------------------------------------------------------------------
+
+        private void ConnectToDirector(JailbreakInputs inputs, LogWindow log, out ScpClient scp, out SshClient ssh)
+        {
+            var connectionInfo = SshConnection(inputs);
+            scp = new ScpClient(connectionInfo);
+            ssh = new SshClient(connectionInfo);
+
+            log.WriteNormal("Connecting to director via SSH/SCP... ");
+            try
+            {
+                ConnectWithRetries(scp, log, "SCP");
+                ConnectWithRetries(ssh, log, "SSH");
+            }
+            catch (Exception)
+            {
+                log.WriteWarning("failed — attempting to restore SSH access\n");
+
+                log.WriteNormal("Restoring SSH password authentication... ");
+                ApplySshRestoreExploit(inputs, GetWritableDriverId(inputs));
+                log.WriteSuccess("done\n");
+
+                log.WriteNormal("Reloading SSH service... ");
+                ReloadSshService(inputs);
+                log.WriteSuccess("done\n");
+
+                log.WriteNormal("Waiting for SSH to reload... ");
+                System.Threading.Thread.Sleep(1000);
+                log.WriteSuccess("done\n");
+
+                log.WriteNormal("Reconnecting via SSH/SCP... ");
+                scp.Dispose();
+                ssh.Dispose();
+                connectionInfo = SshConnection(inputs);
+                scp = new ScpClient(connectionInfo);
+                ssh = new SshClient(connectionInfo);
+                ConnectWithRetries(scp, log, "SCP");
+                ConnectWithRetries(ssh, log, "SSH");
+            }
+
+            log.WriteSuccess("connected\n");
+        }
+
+        private void SshSetupWorker(JailbreakInputs inputs, LogWindow log, List<string> warnings)
+        {
+            try
+            {
+                log.WriteHeader("SSH ACCESS");
+
+                if (string.IsNullOrWhiteSpace(inputs.MacAddress))
+                {
+                    log.WriteError("A controller MAC address is required to set up SSH access.\n");
+                    return;
+                }
+
+                var localKeysFolder = $"{Constants.KeysFolder}/{inputs.MacAddress}";
+                if (!Directory.Exists(localKeysFolder))
+                    Directory.CreateDirectory(localKeysFolder);
+
+                ScpClient scp = null;
+                SshClient ssh = null;
+                try
+                {
+                    ConnectToDirector(inputs, log, out scp, out ssh);
+                    SyncControllerClock(log, ssh);
+
+                    if (DownloadRootDeviceSshKeys(log, scp, localKeysFolder, warnings))
+                        PatchDirectorySshAuthorizedKeysFile(log, scp, ssh, localKeysFolder);
+                    else
+                        log.WriteWarning("Could not download the controller's SSH keys — access not set up.\n");
+                }
+                finally
+                {
+                    scp?.Dispose();
+                    ssh?.Dispose();
+                }
+
+                log.WriteHeader("DONE");
+                log.WriteSuccess(
+                    $"SSH access set up. Connect as root using the keys in {localKeysFolder}.\n");
+                foreach (var warning in warnings)
+                    log.WriteWarning(warning + "\n");
+            }
+            catch (Exception ex)
+            {
+                log.WriteError("SSH setup failed:\n");
+                log.WriteError(ex);
             }
         }
 
@@ -215,7 +420,7 @@ namespace Garry.Control4.Jailbreak.UI
                     return;
                 }
 
-                if (Process.GetProcessesByName("ComposerPro").Length > 0)
+                if (Process.GetProcessesByName(Constants.ComposerProcessName).Length > 0)
                 {
                     log.WriteError("ComposerPro.exe is currently running. Please close Composer and try again.\n");
                     return;
@@ -248,6 +453,7 @@ namespace Garry.Control4.Jailbreak.UI
                 WriteFeatureFlags(log, configFolder);
                 UpdateUpdateManagerSettings(log, configFolder);
                 ConfigureSplitIoBlock(log, inputs.BlockSplitIo);
+                BlockCloudLocator(log);
                 EnsureDealerAccount(log, configFolder);
                 WriteLicenseFile(log, configFolder);
 
@@ -420,7 +626,7 @@ namespace Garry.Control4.Jailbreak.UI
             var schemaFile = $"{Constants.CertsFolder}/.schema-version";
             var needsRegeneration = true;
 
-            if (File.Exists($"{Constants.CertsFolder}/public.pem") &&
+            if (File.Exists($"{Constants.CertsFolder}/{Constants.CaPublicPemFileName}") &&
                 File.Exists($"{Constants.CertsFolder}/private.key"))
             {
                 if (File.Exists(schemaFile))
@@ -562,7 +768,7 @@ namespace Garry.Control4.Jailbreak.UI
         private bool EnsureJwtSigningKeyPair(LogWindow log)
         {
             var keyPath = $"{Constants.CertsFolder}/jailbreak_api.key";
-            var pemPath = $"{Constants.CertsFolder}/jailbreak_api.pem";
+            var pemPath = $"{Constants.CertsFolder}/{Constants.JailbreakApiPemFileName}";
 
             if (File.Exists(keyPath) && File.Exists(pemPath))
             {
@@ -600,9 +806,15 @@ namespace Garry.Control4.Jailbreak.UI
         // Config file patching (dead proxy + bypasslist)
         // -------------------------------------------------------------------
 
+        // Injects a dead <defaultProxy> (127.0.0.1:31337) that blackholes managed HTTP,
+        // with a bypasslist for the update endpoints. On 2026.x the cloud locator call is
+        // made by the native RT DLL, which ignores the config proxy — that path is handled
+        // by the hosts block (BlockCloudLocator) instead. But older Composer makes its
+        // license/dealer calls over managed HttpClient, which DOES honor this proxy, so we
+        // keep injecting it for backwards-compatibility with older installs.
         private void PatchConfigFile(LogWindow log)
         {
-            var configPath = Path.Combine(ComposerInstallDir, "ComposerPro.exe.config");
+            var configPath = Path.Combine(ComposerInstallDir, Constants.ComposerConfigFileName);
             if (!File.Exists(configPath))
             {
                 log.WriteError($"Config file not found: {configPath}\n");
@@ -668,6 +880,38 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
+        // Removes any dead <defaultProxy> from the config. Used by the unjailbreak path to
+        // undo PatchConfigFile.
+        private void RemoveDeadProxyFromConfig(LogWindow log)
+        {
+            var configPath = Path.Combine(ComposerInstallDir, Constants.ComposerConfigFileName);
+            if (!File.Exists(configPath))
+            {
+                log.WriteError($"Config file not found: {configPath}\n");
+                return;
+            }
+
+            try
+            {
+                var xmlDoc = XDocument.Load(configPath);
+                var existingProxy = xmlDoc.Root?.Element("system.net")?.Element("defaultProxy");
+                if (existingProxy == null)
+                {
+                    log.WriteTrace("No dead proxy in config; nothing to do.\n");
+                    return;
+                }
+
+                log.WriteNormal($"Removing dead proxy from {configPath}...\n");
+                existingProxy.Remove();
+                xmlDoc.Save(configPath);
+                log.WriteSuccess("Dead proxy removed.\n");
+            }
+            catch (Exception ex)
+            {
+                log.WriteError($"Config patch error: {ex.Message}\n");
+            }
+        }
+
         // -------------------------------------------------------------------
         // Composer file deployment + settings
         // -------------------------------------------------------------------
@@ -683,12 +927,12 @@ namespace Garry.Control4.Jailbreak.UI
         {
             CopyFile(log, $"{Constants.CertsFolder}/{Constants.ComposerCertName}",
                 $"{configFolder}/Composer/{Constants.ComposerCertName}");
-            CopyFile(log, $"{Constants.CertsFolder}/composer.p12", $"{configFolder}/Composer/composer.p12");
+            CopyFile(log, $"{Constants.CertsFolder}/{Constants.ComposerP12FileName}", $"{configFolder}/Composer/{Constants.ComposerP12FileName}");
         }
 
         private static void WriteFeatureFlags(LogWindow log, string configFolder)
         {
-            WriteFile(log, $"{configFolder}/Composer/FeaturesConfiguration.json",
+            WriteFile(log, $"{configFolder}/Composer/{Constants.FeaturesConfigFileName}",
                 @"{" +
                 @"""composer-x4-updatemanger-restrict-override"":{""Result"":true,""Config"":null}," +
                 @"""connection-whitelist"":{""Result"":false,""Config"":""[]""}," +
@@ -699,7 +943,7 @@ namespace Garry.Control4.Jailbreak.UI
         private static void UpdateUpdateManagerSettings(LogWindow log, string configFolder)
         {
             log.WriteNormal("Setting Update Manager URL... ");
-            var settingsPath = $"{configFolder}/Composer/ComposerUpdateManagerSettings.Config";
+            var settingsPath = $"{configFolder}/Composer/{Constants.UpdateManagerSettingsFileName}";
             try
             {
                 var settingsDoc = File.Exists(settingsPath)
@@ -731,6 +975,17 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
+        // Mandatory (unlike the optional split.io block): with apis.control4.com reachable,
+        // Composer validates the Composer client cert against the cloud and rejects the
+        // jailbreak's self-signed composer.p12, forcing the "Register Composer" prompt and
+        // blocking all connections. Blocking the locator forces OnlineServicesAvailable=false
+        // so the cert validates locally. Not tied to a checkbox because the jailbreak can't
+        // function without it.
+        private static void BlockCloudLocator(LogWindow log)
+        {
+            AddLineToFile(log, Constants.WindowsHostsFile, Constants.BlockCloudLocatorHostsEntry);
+        }
+
         private static void ConfigureSplitIoBlock(LogWindow log, bool blockSplitIo)
         {
             if (blockSplitIo)
@@ -745,9 +1000,11 @@ namespace Garry.Control4.Jailbreak.UI
 
         private static void WriteLicenseFile(LogWindow log, string configFolder)
         {
-            // Composer 2026.x aborts at startup if this file is missing.
+            // Composer 2026.x shows the "Register Composer" dialog at startup if this file is
+            // missing. FileManager/DealerAccountService look for it at %AppData%\Control4\license.xml
+            // (alongside dealeraccount.xml), NOT under the Composer subfolder.
             // Contents aren't validated when OnlineServicesAvailable=false — existence is enough.
-            var path = $"{configFolder}/Composer/license.xml";
+            var path = $"{configFolder}/{Constants.LicenseFileName}";
             if (File.Exists(path))
             {
                 log.WriteTrace("license.xml already exists\n");
@@ -767,10 +1024,10 @@ namespace Garry.Control4.Jailbreak.UI
         private static void EnsureDealerAccount(LogWindow log, string configFolder)
         {
             log.WriteNormal("Checking dealer account... ");
-            if (!File.Exists($"{configFolder}/dealeraccount.xml"))
+            if (!File.Exists($"{configFolder}/{Constants.DealerAccountFileName}"))
             {
                 log.WriteNormal("creating\n");
-                WriteFile(log, $"{configFolder}/dealeraccount.xml", @"<?xml version=""1.0"" encoding=""utf-8""?>
+                WriteFile(log, $"{configFolder}/{Constants.DealerAccountFileName}", @"<?xml version=""1.0"" encoding=""utf-8""?>
 <DealerAccount>
   <Username>no</Username>
   <Employee>False</Employee>
@@ -893,7 +1150,7 @@ namespace Garry.Control4.Jailbreak.UI
         /// </summary>
         private bool PatchDirector(JailbreakInputs inputs, LogWindow log, List<string> warnings)
         {
-            if (!File.Exists($"{Constants.CertsFolder}/public.pem"))
+            if (!File.Exists($"{Constants.CertsFolder}/{Constants.CaPublicPemFileName}"))
             {
                 log.WriteError(
                     $"Couldn't find {Constants.CertsFolder}/public.pem - have you generated certificates?\n");
@@ -967,13 +1224,13 @@ namespace Garry.Control4.Jailbreak.UI
                 }
 
                 log.WriteNormal($"Reading {Constants.CertsFolder}/public.pem... ");
-                var localCert = File.ReadAllText($"{Constants.CertsFolder}/public.pem").Trim();
+                var localCert = File.ReadAllText($"{Constants.CertsFolder}/{Constants.CaPublicPemFileName}").Trim();
                 log.WriteSuccess("done\n");
 
-                anyModified |= PatchRemoteCertChain(log, scp, ssh, "/etc/openvpn/clientca-prod.pem", localCert);
+                anyModified |= PatchRemoteCertChain(log, scp, ssh, Constants.OpenVpnClientCaProdPem, localCert);
                 anyModified |=
-                    PatchRemoteCertChain(log, scp, ssh, "/opt/control4/etc/ssl/certs/clientca-prod.pem", localCert);
-                anyModified |= PatchRemoteCertChain(log, scp, ssh, "/etc/mosquitto/certs/ca-chain.pem", localCert);
+                    PatchRemoteCertChain(log, scp, ssh, Constants.ControllerClientCaProdPem, localCert);
+                anyModified |= PatchRemoteCertChain(log, scp, ssh, Constants.MosquittoCaChainPem, localCert);
 
                 PatchControllerApiPem(log, scp, ssh);
 
@@ -1021,8 +1278,8 @@ namespace Garry.Control4.Jailbreak.UI
         /// </summary>
         private static void PatchControllerApiPem(LogWindow log, ScpClient scp, SshClient ssh)
         {
-            const string remoteFile = "/opt/control4/etc/ssl/certs/api.pem";
-            var localPemPath = $"{Constants.CertsFolder}/jailbreak_api.pem";
+            const string remoteFile = Constants.ControllerApiPem;
+            var localPemPath = $"{Constants.CertsFolder}/{Constants.JailbreakApiPemFileName}";
 
             log.WriteNormal($"Patching {remoteFile}:\n");
 
@@ -1062,7 +1319,7 @@ namespace Garry.Control4.Jailbreak.UI
 
             var backupFilename = $"api.pem.{DateTime.Now:yyyy-dd-M--HH-mm-ss}.backup";
             log.WriteNormal($"  Saving remote backup to /opt/control4/etc/ssl/certs/{backupFilename}... ");
-            UploadFile(scp, ssh, $"/opt/control4/etc/ssl/certs/{backupFilename}", remotePem);
+            UploadFile(scp, ssh, $"{Constants.ControllerSslCertsDir}/{backupFilename}", remotePem);
             log.WriteSuccess("done\n");
 
             log.WriteNormal($"  Saving local backup to {Constants.CertsFolder}/{backupFilename}... ");
@@ -1075,7 +1332,7 @@ namespace Garry.Control4.Jailbreak.UI
 
             log.WriteNormal("  Restarting mosquitto-jwt-auth... ");
             // Plugin loads the PEM only at startup; sysmand respawns the process within ~10s.
-            var restartResult = ssh.RunCommand("pidof mosquitto-jwt-auth | xargs -r kill -9");
+            var restartResult = ssh.RunCommand($"pidof {Constants.MosquittoJwtAuthProcess} | xargs -r kill -9");
             if (restartResult.ExitStatus != 0)
             {
                 log.WriteError($"failed (exit {restartResult.ExitStatus})\n");
@@ -1211,7 +1468,7 @@ namespace Garry.Control4.Jailbreak.UI
             foreach (var file in files)
             {
                 var localFile = $"{localKeysFolder}/{file}";
-                var remoteFile = $"/etc/ssh/{file}";
+                var remoteFile = $"{Constants.ControllerSshDir}/{file}";
                 log.WriteNormal($"  Downloading {remoteFile}... ");
 
                 string key;
@@ -1255,8 +1512,8 @@ namespace Garry.Control4.Jailbreak.UI
         {
             var localPubKeyFiles = new List<string>
             {
-                $"{localKeysFolder}/ssh_host_rsa_key.pub",
-                $"{localKeysFolder}/ssh_host_ed25519_key.pub"
+                $"{localKeysFolder}/{Constants.SshHostRsaPubKey}",
+                $"{localKeysFolder}/{Constants.SshHostEd25519PubKey}"
             }.Where(File.Exists).ToArray();
             if (localPubKeyFiles.Length == 0)
             {
@@ -1264,7 +1521,7 @@ namespace Garry.Control4.Jailbreak.UI
             }
 
             var localAuthorizedKeysFile = $"{localKeysFolder}/authorized_keys";
-            const string remoteAuthorizedKeysFile = "/home/root/.ssh/authorized_keys";
+            const string remoteAuthorizedKeysFile = Constants.ControllerAuthorizedKeys;
 
             log.WriteNormal("Patching authorized_keys file on director:\n");
             var localPubKeys = new List<string>();
@@ -1348,7 +1605,7 @@ namespace Garry.Control4.Jailbreak.UI
         }
 
         /// <summary>
-        /// Checks the controller's clock and corrects it if it's more than 24 hours off.
+        /// Checks the controller's clock and corrects it if it's more than two minutes off.
         /// A wrong clock (e.g. dead CMOS battery) causes TLS certificate validation failures.
         /// </summary>
         private static void SyncControllerClock(LogWindow log, SshClient ssh)
@@ -1407,9 +1664,9 @@ namespace Garry.Control4.Jailbreak.UI
             // legacy paths first (unchanged for older OS), then fall back to the 4.2.1 location.
             foreach (var remote in new[]
                      {
-                         "/opt/control4/etc/ssl/certs/agent.pem",
-                         "/opt/control4/etc/ssl/certs/client.pem",
-                         "/opt/control4/etc/certs/cvm-device.pem"
+                         Constants.ControllerAgentPem,
+                         Constants.ControllerClientPem,
+                         Constants.ControllerCvmDevicePem
                      })
             {
                 try
@@ -1555,7 +1812,7 @@ namespace Garry.Control4.Jailbreak.UI
 
         private static string ReadDealerUsername(string configFolder)
         {
-            var path = $"{configFolder}/dealeraccount.xml";
+            var path = $"{configFolder}/{Constants.DealerAccountFileName}";
             if (!File.Exists(path)) return null;
             try
             {
@@ -2074,24 +2331,30 @@ f:close()
 
                 log.WriteSuccess("not yet installed\n");
 
-                // Find a matching SOAP version
+                // Find a matching SOAP version. Prefer the main update service; fall
+                // back to the external (beta) service only if the OS isn't found there,
+                // since newer/beta OS builds are published only to the external endpoint.
+                var serviceUrl = Constants.UpdatesServiceUrl;
                 log.WriteNormal("Querying Control4 update service... ");
-                var versions = await Task.Run(() => GetComposerVersions());
-                if (versions == null || versions.Length == 0)
+                var versions = await Task.Run(() => GetComposerVersions(serviceUrl));
+                var matchedVersion = versions?.FirstOrDefault(v => v.StartsWith(shortVersion));
+
+                if (matchedVersion == null)
                 {
-                    log.WriteError("No versions found from update service.\n");
-                    return;
+                    log.WriteSuccess("not found\n");
+                    log.WriteNormal("Checking the beta (external) update service... ");
+                    serviceUrl = Constants.UpdatesExternalUrl;
+                    versions = await Task.Run(() => GetComposerVersions(serviceUrl));
+                    matchedVersion = versions?.FirstOrDefault(v => v.StartsWith(shortVersion));
                 }
 
-                log.WriteSuccess("done\n");
-
-                var matchedVersion = versions.FirstOrDefault(v => v.StartsWith(shortVersion));
                 if (matchedVersion == null)
                 {
                     log.WriteError($"No management pack found for OS {shortVersion}.\n");
                     return;
                 }
 
+                log.WriteSuccess("done\n");
                 log.WriteNormal($"Matched version: {matchedVersion}\n");
 
                 log.WriteHeader("PACKAGE INFO");
@@ -2099,7 +2362,7 @@ f:close()
                 string pkgName = null, pkgUrl = null, pkgChecksum = null;
                 long pkgSize = 0;
                 var found = await Task.Run(() =>
-                    GetDriversPackageInfo(matchedVersion, out pkgName, out pkgUrl, out pkgSize, out pkgChecksum));
+                    GetDriversPackageInfo(serviceUrl, matchedVersion, out pkgName, out pkgUrl, out pkgSize, out pkgChecksum));
                 if (!found)
                 {
                     log.WriteError("No management pack package found for this version.\n");
@@ -2162,7 +2425,7 @@ f:close()
             }
         }
 
-        private static XDocument CallSoapService(string action, string innerXml)
+        private static XDocument CallSoapService(string action, string innerXml, string serviceUrl)
         {
             var soapBody = "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
                            "<soap:Envelope xmlns:soap=\"http://schemas.xmlsoap.org/soap/envelope/\" " +
@@ -2176,17 +2439,17 @@ f:close()
                 client.Headers["Content-Type"] = "text/xml; charset=utf-8";
                 client.Headers["SOAPAction"] = "\"" + Constants.UpdatesSoapNamespace + action + "\"";
 
-                var response = client.UploadString(Constants.UpdatesServiceUrl, soapBody);
+                var response = client.UploadString(serviceUrl, soapBody);
                 return XDocument.Parse(response);
             }
         }
 
-        private static string[] GetComposerVersions()
+        private static string[] GetComposerVersions(string serviceUrl)
         {
             var doc = CallSoapService("GetVersions",
                 "<upd:GetVersions>" +
                 "<upd:currentVersion>3.0.0</upd:currentVersion>" +
-                "</upd:GetVersions>");
+                "</upd:GetVersions>", serviceUrl);
 
             var ns = XNamespace.Get(Constants.UpdatesSoapNamespace);
 
@@ -2197,7 +2460,7 @@ f:close()
                 .ToArray();
         }
 
-        private static bool GetDriversPackageInfo(string version,
+        private static bool GetDriversPackageInfo(string serviceUrl, string version,
             out string name, out string url, out long size, out string checksum)
         {
             name = url = checksum = null;
@@ -2207,7 +2470,7 @@ f:close()
             var doc = CallSoapService("GetPackagesByVersion",
                 "<upd:GetPackagesByVersion>" +
                 "<upd:version>" + escapedVersion + "</upd:version>" +
-                "</upd:GetPackagesByVersion>");
+                "</upd:GetPackagesByVersion>", serviceUrl);
 
             var ns = XNamespace.Get(Constants.UpdatesSoapNamespace);
 
@@ -2349,6 +2612,315 @@ f:close()
             log.WriteSuccess("done\n");
         }
 
+        // -------------------------------------------------------------------
+        // Unjailbreak — revert what the jailbreak changed (hidden: Shift+Click)
+        // -------------------------------------------------------------------
+
+        private void UnjailbreakWorker(JailbreakInputs inputs, LogWindow log, List<string> warnings)
+        {
+            try
+            {
+                if (Process.GetProcessesByName(Constants.ComposerProcessName).Length > 0)
+                {
+                    log.WriteError("ComposerPro.exe is currently running. Please close Composer and try again.\n");
+                    return;
+                }
+
+                if (!FindComposerInstallDir(log))
+                    return;
+
+                // 1. Local (Windows) reversal
+                log.WriteHeader("REMOVE LOCAL CHANGES");
+                var configFolder = GetComposerConfigFolder();
+                RemoveComposerFiles(log, configFolder);
+
+                RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockCloudLocatorHostsEntry);
+                RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockSplitIoHostsEntry);
+
+                // Strip the dead proxy that PatchConfigFile injected (and any left by older versions).
+                RemoveDeadProxyFromConfig(log);
+
+                // 2. Controller (director) reversal — best-effort, requires SSH. The reboot
+                // (if cert chains changed) runs inside UnpatchDirector over the still-open
+                // session, because the reversal removes our authorized_keys entry and a fresh
+                // SSH connection would then fail with "publickey".
+                log.WriteHeader("REVERT DIRECTOR");
+                try
+                {
+                    UnpatchDirector(inputs, log, warnings);
+                }
+                catch (Exception ex)
+                {
+                    log.WriteError("Director reversal failed:\n");
+                    log.WriteError(ex);
+                    log.WriteNormal(
+                        "\nLocal changes were reverted. Re-run (Shift+Click) when the controller is reachable to finish.\n");
+                    return;
+                }
+
+                log.WriteHeader("DONE");
+                log.WriteSuccess("Unjailbreak complete.\n");
+                foreach (var warning in warnings)
+                    log.WriteWarning(warning + "\n");
+            }
+            catch (Exception ex)
+            {
+                log.WriteError("Unjailbreak failed:\n");
+                log.WriteError(ex);
+            }
+        }
+
+        private static void RemoveComposerFiles(LogWindow log, string configFolder)
+        {
+            DeleteIfExists(log, $"{configFolder}/Composer/{Constants.ComposerCertName}");
+            DeleteIfExists(log, $"{configFolder}/Composer/{Constants.ComposerP12FileName}");
+            DeleteIfExists(log, $"{configFolder}/Composer/{Constants.FeaturesConfigFileName}");
+            DeleteIfExists(log, $"{configFolder}/{Constants.DealerAccountFileName}");
+            DeleteIfExists(log, $"{configFolder}/{Constants.LicenseFileName}");
+            // ComposerUpdateManagerSettings.Config is Composer's own settings file; only our
+            // UpdateURLList30 entry was added and it's harmless without the jailbreak, so leave it.
+        }
+
+        private static void DeleteIfExists(LogWindow log, string path)
+        {
+            log.WriteNormal($"Removing {Path.GetFileName(path)}... ");
+            try
+            {
+                if (File.Exists(path))
+                {
+                    File.Delete(path);
+                    log.WriteSuccess("done\n");
+                }
+                else
+                {
+                    log.WriteTrace("not present\n");
+                }
+            }
+            catch (Exception ex)
+            {
+                log.WriteError($"failed: {ex.Message}\n");
+            }
+        }
+
+        private bool UnpatchDirector(JailbreakInputs inputs, LogWindow log, List<string> warnings)
+        {
+            var anyModified = false;
+            ScpClient scp = null;
+            SshClient ssh = null;
+
+            try
+            {
+                var connectionInfo = SshConnection(inputs);
+                scp = new ScpClient(connectionInfo);
+                ssh = new SshClient(connectionInfo);
+
+                log.WriteNormal("Connecting to director via SSH/SCP... ");
+                ConnectWithRetries(scp, log, "SCP");
+                ConnectWithRetries(ssh, log, "SSH");
+                log.WriteSuccess("connected\n");
+
+                var localCertPath = $"{Constants.CertsFolder}/{Constants.CaPublicPemFileName}";
+                var localCert = File.Exists(localCertPath)
+                    ? File.ReadAllText(localCertPath).Trim()
+                    : null;
+                if (localCert == null)
+                    log.WriteWarning(
+                        $"{localCertPath} missing — removing jailbreak certs by CN detection only.\n");
+
+                anyModified |= UnpatchRemoteCertChain(log, scp, ssh, Constants.OpenVpnClientCaProdPem, localCert);
+                anyModified |=
+                    UnpatchRemoteCertChain(log, scp, ssh, Constants.ControllerClientCaProdPem, localCert);
+                anyModified |= UnpatchRemoteCertChain(log, scp, ssh, Constants.MosquittoCaChainPem, localCert);
+
+                UnpatchControllerApiPem(log, scp, ssh);
+
+                // Remove our authorized_keys entry LAST — we rely on it to stay connected.
+                UnpatchAuthorizedKeys(log, scp, ssh, $"{Constants.KeysFolder}/{inputs.MacAddress}");
+
+                if (anyModified)
+                {
+                    // Reboot over THIS already-open session. We just removed our authorized_keys
+                    // entry, so a new SSH connection would fail with "publickey"; this session is
+                    // already authenticated and stays valid until the box actually reboots.
+                    DialogResult rebootChoice = DialogResult.None;
+
+                    void AskReboot()
+                    {
+                        rebootChoice = MessageBox.Show(
+                            FindForm(),
+                            "The director needs to reboot for the certificate changes to take effect.\n\n" +
+                            "This will temporarily take your Control4 system offline.\n\nReboot now?",
+                            "Director Reboot Required",
+                            MessageBoxButtons.YesNo,
+                            MessageBoxIcon.Question);
+                    }
+
+                    if (InvokeRequired)
+                        Invoke((Action)AskReboot);
+                    else
+                        AskReboot();
+
+                    if (rebootChoice == DialogResult.Yes)
+                    {
+                        log.WriteNormal("Rebooting director... ");
+                        ssh.RunCommand("nohup sh -c '( sleep 2 ; reboot )' >/dev/null 2>&1 &");
+                        log.WriteSuccess("done\n");
+                        _directorVersion = null;
+                        warnings.Add(
+                            "Your system is rebooting — it can take a while. Don't panic, give it 10 minutes!\n");
+                    }
+                    else
+                    {
+                        log.WriteNormal("Skipping reboot for now.\n");
+                        warnings.Add(
+                            "Reboot skipped — certificate changes take effect after the director reboots.\n");
+                    }
+                }
+
+                return anyModified;
+            }
+            finally
+            {
+                scp?.Dispose();
+                ssh?.Dispose();
+            }
+        }
+
+        private static string NormalizePem(string pem) =>
+            new string((pem ?? "").Where(c => !char.IsWhiteSpace(c)).ToArray());
+
+        // Download a cert chain, drop the jailbreak CA (and any orphan jailbreak certs), re-upload.
+        private static bool UnpatchRemoteCertChain(LogWindow log, ScpClient scp, SshClient ssh, string remoteFile,
+            string localCert)
+        {
+            log.WriteNormal($"Cleaning {remoteFile}:\n");
+
+            string remoteCertChain;
+            try
+            {
+                log.WriteNormal($"  Downloading {remoteFile}... ");
+                remoteCertChain = DownloadFile(scp, remoteFile).Trim();
+                log.WriteSuccess("done\n");
+            }
+            catch (ScpException)
+            {
+                log.WriteTrace("  file doesn't exist - skipping\n");
+                return false;
+            }
+
+            var localNorm = localCert == null ? null : NormalizePem(localCert);
+            var blocks = ExtractPemBlocks(remoteCertChain).ToList();
+            var kept = blocks
+                .Where(pem => !IsOrphanJailbreakCert(pem)
+                              && (localNorm == null || NormalizePem(pem) != localNorm))
+                .ToList();
+
+            if (kept.Count == blocks.Count)
+            {
+                log.WriteTrace("  (nothing to remove)\n");
+                return false;
+            }
+
+            var rebuilt = string.Join("\n", kept).Trim() + "\n";
+            log.WriteNormal($"  Updating {remoteFile}... ");
+            UploadFile(scp, ssh, remoteFile, rebuilt);
+            log.WriteSuccess("done\n");
+            return true;
+        }
+
+        private static void UnpatchControllerApiPem(LogWindow log, ScpClient scp, SshClient ssh)
+        {
+            const string remoteFile = Constants.ControllerApiPem;
+            log.WriteNormal($"Cleaning {remoteFile}:\n");
+
+            string remotePem;
+            try
+            {
+                log.WriteNormal($"  Downloading {remoteFile}... ");
+                remotePem = DownloadFile(scp, remoteFile);
+                log.WriteSuccess("done\n");
+            }
+            catch (ScpException)
+            {
+                log.WriteTrace("  file doesn't exist - skipping\n");
+                return;
+            }
+
+            var blocks = ExtractPemBlocks(remotePem).ToList();
+            var kept = blocks.Where(pem => !IsOrphanJailbreakCert(pem)).ToList();
+            if (kept.Count == blocks.Count)
+            {
+                log.WriteTrace("  (nothing to remove)\n");
+                return;
+            }
+
+            var rebuilt = string.Join("\n", kept).Trim() + "\n";
+            log.WriteNormal($"  Updating {remoteFile}... ");
+            UploadFile(scp, ssh, remoteFile, rebuilt);
+            log.WriteSuccess("done\n");
+
+            log.WriteNormal("  Restarting mosquitto-jwt-auth... ");
+            var restartResult = ssh.RunCommand($"pidof {Constants.MosquittoJwtAuthProcess} | xargs -r kill -9");
+            if (restartResult.ExitStatus != 0)
+                log.WriteError($"failed (exit {restartResult.ExitStatus})\n");
+            else
+                log.WriteSuccess("done\n");
+        }
+
+        private static void UnpatchAuthorizedKeys(LogWindow log, ScpClient scp, SshClient ssh, string localKeysFolder)
+        {
+            var pubKeys = new List<string>
+                {
+                    $"{localKeysFolder}/{Constants.SshHostRsaPubKey}",
+                    $"{localKeysFolder}/{Constants.SshHostEd25519PubKey}"
+                }
+                .Where(File.Exists)
+                .Select(f => File.ReadAllText(f).Trim())
+                .ToList();
+            if (pubKeys.Count == 0)
+            {
+                log.WriteTrace("No local SSH pub keys on record — skipping authorized_keys cleanup.\n");
+                return;
+            }
+
+            const string remoteAuthorizedKeysFile = Constants.ControllerAuthorizedKeys;
+            log.WriteNormal($"Cleaning {remoteAuthorizedKeysFile}:\n");
+
+            string authorizedKeys;
+            try
+            {
+                log.WriteNormal($"  Downloading {remoteAuthorizedKeysFile}... ");
+                authorizedKeys = DownloadFile(scp, remoteAuthorizedKeysFile);
+                log.WriteSuccess("done\n");
+            }
+            catch (ScpException)
+            {
+                log.WriteTrace("  file doesn't exist - skipping\n");
+                return;
+            }
+
+            var originalLines = authorizedKeys.Replace("\r\n", "\n").Split('\n')
+                .Where(l => !string.IsNullOrWhiteSpace(l))
+                .ToList();
+            var keptLines = originalLines
+                .Where(line => !pubKeys.Any(k => line.Trim() == k || line.Contains(k)))
+                .ToList();
+
+            if (keptLines.Count == originalLines.Count)
+            {
+                log.WriteTrace("  (nothing to remove)\n");
+                return;
+            }
+
+            var rebuilt = string.Join("\n", keptLines).Trim();
+            if (rebuilt.Length > 0)
+                rebuilt += "\n";
+
+            log.WriteNormal("  Updating authorized_keys... ");
+            UploadFile(scp, ssh, remoteAuthorizedKeysFile, rebuilt);
+            log.WriteSuccess("done\n");
+        }
+
         private static void RemoveLineFromFile(LogWindow log, string file, string line, bool ignoreWhitespace = true)
         {
             if (!File.Exists(file))
@@ -2443,6 +3015,56 @@ f:close()
             var process = Process.Start(startInfo);
 
             return process?.StandardOutput.ReadToEnd();
+        }
+    }
+
+    /// <summary>
+    /// A Button with a right-hand dropdown-arrow zone, drawn as a single element. Clicking the
+    /// arrow zone opens DropDownMenu; clicking anywhere else raises Click as usual.
+    /// </summary>
+    public class SplitButton : Button
+    {
+        public const int ArrowZoneWidth = 34;
+
+        public ContextMenuStrip DropDownMenu { get; set; }
+
+        protected override void OnPaint(PaintEventArgs pevent)
+        {
+            base.OnPaint(pevent);
+
+            var g = pevent.Graphics;
+            var splitX = Width - ArrowZoneWidth;
+
+            using (var pen = new System.Drawing.Pen(System.Drawing.Color.FromArgb(60, ForeColor)))
+            {
+                g.DrawLine(pen, splitX, 10, splitX, Height - 10);
+            }
+
+            var cx = splitX + (ArrowZoneWidth / 2);
+            var cy = Height / 2;
+            var arrow = new[]
+            {
+                new System.Drawing.Point(cx - 5, cy - 2),
+                new System.Drawing.Point(cx + 5, cy - 2),
+                new System.Drawing.Point(cx, cy + 4),
+            };
+            using (var brush = new System.Drawing.SolidBrush(
+                Enabled ? ForeColor : System.Drawing.SystemColors.GrayText))
+            {
+                g.FillPolygon(brush, arrow);
+            }
+        }
+
+        protected override void OnMouseDown(MouseEventArgs mevent)
+        {
+            if (mevent.Button == MouseButtons.Left && DropDownMenu != null &&
+                mevent.X >= Width - ArrowZoneWidth)
+            {
+                DropDownMenu.Show(this, new System.Drawing.Point(0, Height));
+                return;
+            }
+
+            base.OnMouseDown(mevent);
         }
     }
 }
