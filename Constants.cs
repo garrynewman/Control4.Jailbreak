@@ -2,7 +2,7 @@ namespace Garry.Control4.Jailbreak
 {
     public static class Constants
     {
-        public const string Version = "9";
+        public const string Version = "9.1";
 
         /// <summary>
         /// The cert for composer needs to be named cacert-*.pem
@@ -75,13 +75,27 @@ namespace Garry.Control4.Jailbreak
         public const string BlockSplitIoHostsEntry = @"127.0.0.1  split.io sdk.split.io";
 
         /// <summary>
-        /// Host entry blocking the Control4 cloud service locator. When apis.control4.com is
-        /// unreachable, Composer sets OnlineServicesAvailable=false and validates the Composer
-        /// client cert (composer.p12) locally against the deployed cacert instead of against the
-        /// cloud — which lets the jailbreak's self-signed cert pass and suppresses the
-        /// "Register Composer" prompt. apis-beta covers the beta environment.
+        /// Legacy host entry that blocked the Control4 cloud service *locator* (apis.control4.com).
+        /// Blocking the locator forces OnlineServicesAvailable=false, which does suppress the
+        /// "Register Composer" prompt but also disables every online feature, including Composer's
+        /// online driver add/update. Kept only so the jailbreak and revert can strip it from
+        /// machines set up by earlier versions; new runs no longer add it.
         /// </summary>
         public const string BlockCloudLocatorHostsEntry = @"127.0.0.1  apis.control4.com apis-beta.control4.com";
+
+        /// <summary>
+        /// Host entry blocking services.control4.com, the host of the Composer licensing SOAP
+        /// (Services.LicensingUrl = /Security/v1_0/Licensing.asmx). On Composer 2026.x, once the
+        /// locator (apis.control4.com) reports online, Composer reauthorizes the Composer license via
+        /// ReauthorizeComposerPro on this host; with the jailbreak's dealer account that call is
+        /// rejected and the modal "Register Composer" window closes the app. Blocking it makes Composer
+        /// fall back to the local license.xml. The locator (apis.control4.com) and the REST cloud API
+        /// (apiz.control4.com) are left reachable, so OnlineServicesAvailable stays true and the online
+        /// driver add/update actions keep working. Note: this also blocks the Updates2x service on
+        /// services.control4.com, so the Update Manager version list and the tool's own management-pack
+        /// downloader cannot reach the cloud while the block is in place.
+        /// </summary>
+        public const string BlockCloudServicesHostsEntry = @"127.0.0.1  services.control4.com";
 
         /// <summary>
         /// The SOAP endpoint for the Control4 Updates service that provides package listings.

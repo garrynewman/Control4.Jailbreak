@@ -453,7 +453,7 @@ namespace Garry.Control4.Jailbreak.UI
                 WriteFeatureFlags(log, configFolder);
                 UpdateUpdateManagerSettings(log, configFolder);
                 ConfigureSplitIoBlock(log, inputs.BlockSplitIo);
-                BlockCloudLocator(log);
+                BlockCloudServices(log);
                 EnsureDealerAccount(log, configFolder);
                 WriteLicenseFile(log, configFolder);
 
@@ -807,11 +807,11 @@ namespace Garry.Control4.Jailbreak.UI
         // -------------------------------------------------------------------
 
         // Injects a dead <defaultProxy> (127.0.0.1:31337) that blackholes managed HTTP,
-        // with a bypasslist for the update endpoints. On 2026.x the cloud locator call is
-        // made by the native RT DLL, which ignores the config proxy — that path is handled
-        // by the hosts block (BlockCloudLocator) instead. But older Composer makes its
-        // license/dealer calls over managed HttpClient, which DOES honor this proxy, so we
-        // keep injecting it for backwards-compatibility with older installs.
+        // with a bypasslist for the update endpoints. On 2026.x the online cert/auth check is
+        // made by the new HttpClient-based REST client, which ignores the config proxy; that
+        // path is handled by the hosts block (BlockCloudServices) instead. But older Composer
+        // makes its license/dealer calls over managed HttpClient, which DOES honor this proxy,
+        // so we keep injecting it for backwards-compatibility with older installs.
         private void PatchConfigFile(LogWindow log)
         {
             var configPath = Path.Combine(ComposerInstallDir, Constants.ComposerConfigFileName);
@@ -975,15 +975,19 @@ namespace Garry.Control4.Jailbreak.UI
             }
         }
 
-        // Mandatory (unlike the optional split.io block): with apis.control4.com reachable,
-        // Composer validates the Composer client cert against the cloud and rejects the
-        // jailbreak's self-signed composer.p12, forcing the "Register Composer" prompt and
-        // blocking all connections. Blocking the locator forces OnlineServicesAvailable=false
-        // so the cert validates locally. Not tied to a checkbox because the jailbreak can't
-        // function without it.
-        private static void BlockCloudLocator(LogWindow log)
+        // On 2026.x, once the locator (apis.control4.com) reports online, Composer reauthorizes the
+        // Composer license via ReauthorizeComposerPro on services.control4.com; the reauth is rejected
+        // for the jailbreak's dealer account and the modal "Register Composer" window closes the app.
+        // That call ignores the config defaultProxy, so services.control4.com is blocked at the hosts
+        // level here, which leaves Composer to fall back to the local license.xml. The locator
+        // (apis.control4.com) and the REST cloud API (apiz.control4.com) are left reachable so
+        // OnlineServicesAvailable stays true and the online driver add/update actions stay enabled.
+        // Also strips the legacy locator block left by earlier versions. Not tied to a checkbox
+        // because the jailbreak can't function without it.
+        private static void BlockCloudServices(LogWindow log)
         {
-            AddLineToFile(log, Constants.WindowsHostsFile, Constants.BlockCloudLocatorHostsEntry);
+            RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockCloudLocatorHostsEntry);
+            AddLineToFile(log, Constants.WindowsHostsFile, Constants.BlockCloudServicesHostsEntry);
         }
 
         private static void ConfigureSplitIoBlock(LogWindow log, bool blockSplitIo)
@@ -2634,6 +2638,7 @@ f:close()
                 var configFolder = GetComposerConfigFolder();
                 RemoveComposerFiles(log, configFolder);
 
+                RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockCloudServicesHostsEntry);
                 RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockCloudLocatorHostsEntry);
                 RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockSplitIoHostsEntry);
 
