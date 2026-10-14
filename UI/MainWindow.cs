@@ -31,17 +31,25 @@ namespace Garry.Control4.Jailbreak.UI
             Director = new Director(this);
 
             Jailbreak = new Jailbreak(this);
-            Jailbreak.Dock = DockStyle.Fill;
+            // Dock to the top (not Fill) and let Panel1 scroll, so the content can be taller than
+            // the window without being clipped when it exceeds the screen height.
+            Jailbreak.Dock = DockStyle.Top;
+            splitContainer3.Panel1.AutoScroll = true;
             splitContainer3.Panel1.Controls.Add(Jailbreak);
 
-            // Size window to fit the Jailbreak content
+            // Size window to fit the Jailbreak content, but never taller than the screen; Panel1
+            // scrolls for the overflow.
             var contentSize = Jailbreak.PreferredSize;
             var chromeWidth = Width - ClientSize.Width;
             var chromeHeight = Height - ClientSize.Height;
             var menuHeight = menuStrip1.Height;
             var statusHeight = splitContainer3.Height - splitContainer3.SplitterDistance;
-            Width = contentSize.Width + chromeWidth + Jailbreak.Margin.Horizontal + 10;
-            Height = contentSize.Height + chromeHeight + menuHeight + statusHeight + 10;
+            var desiredHeight = contentSize.Height + chromeHeight + menuHeight + statusHeight + 10;
+            var maxHeight = Screen.PrimaryScreen.WorkingArea.Height;
+            var needsScroll = desiredHeight > maxHeight;
+            var scrollbarWidth = needsScroll ? SystemInformation.VerticalScrollBarWidth : 0;
+            Width = contentSize.Width + chromeWidth + Jailbreak.Margin.Horizontal + 10 + scrollbarWidth;
+            Height = Math.Min(desiredHeight, maxHeight);
             MaximizeBox = false;
 
             CenterToScreen();

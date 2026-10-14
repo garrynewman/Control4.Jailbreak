@@ -49,6 +49,9 @@ namespace Garry.Control4.Jailbreak.UI
             this.labelManagementPack = new System.Windows.Forms.Label();
             this.labelManagementPackDesc = new System.Windows.Forms.Label();
             this.buttonInstallMgmtPack = new System.Windows.Forms.Button();
+            this.labelUpdates = new System.Windows.Forms.Label();
+            this.labelUpdatesDesc = new System.Windows.Forms.Label();
+            this.buttonAllowUpdates = new System.Windows.Forms.Button();
             this.panelCredentials = new System.Windows.Forms.Panel();
             this.panelMac = new System.Windows.Forms.Panel();
             this.panelJailbreakRow = new System.Windows.Forms.Panel();
@@ -77,10 +80,16 @@ namespace Garry.Control4.Jailbreak.UI
             this.tableLayoutPanel1.Controls.Add(this.labelManagementPack, 0, 9);
             this.tableLayoutPanel1.Controls.Add(this.labelManagementPackDesc, 0, 10);
             this.tableLayoutPanel1.Controls.Add(this.buttonInstallMgmtPack, 1, 10);
+            this.tableLayoutPanel1.Controls.Add(this.labelUpdates, 0, 11);
+            this.tableLayoutPanel1.Controls.Add(this.labelUpdatesDesc, 0, 12);
+            this.tableLayoutPanel1.Controls.Add(this.buttonAllowUpdates, 1, 12);
             this.tableLayoutPanel1.Location = new System.Drawing.Point(24, 31);
             this.tableLayoutPanel1.Margin = new System.Windows.Forms.Padding(0);
             this.tableLayoutPanel1.Name = "tableLayoutPanel1";
-            this.tableLayoutPanel1.RowCount = 12;
+            this.tableLayoutPanel1.Padding = new System.Windows.Forms.Padding(0, 0, 0, 30);
+            this.tableLayoutPanel1.RowCount = 14;
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
+            this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
             this.tableLayoutPanel1.RowStyles.Add(new System.Windows.Forms.RowStyle());
@@ -381,6 +390,49 @@ namespace Garry.Control4.Jailbreak.UI
             this.buttonInstallMgmtPack.UseVisualStyleBackColor = true;
             this.buttonInstallMgmtPack.Click += new System.EventHandler(this.InstallManagementPack);
             //
+            // labelUpdates
+            //
+            this.labelUpdates.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelUpdates.AutoSize = true;
+            this.tableLayoutPanel1.SetColumnSpan(this.labelUpdates, 2);
+            this.labelUpdates.Font = new System.Drawing.Font("Microsoft YaHei", 16F, System.Drawing.FontStyle.Bold);
+            this.labelUpdates.ForeColor = System.Drawing.SystemColors.Highlight;
+            this.labelUpdates.Location = new System.Drawing.Point(0, 931);
+            this.labelUpdates.Margin = new System.Windows.Forms.Padding(0, 14, 0, 28);
+            this.labelUpdates.Name = "labelUpdates";
+            this.labelUpdates.Size = new System.Drawing.Size(952, 57);
+            this.labelUpdates.TabIndex = 13;
+            this.labelUpdates.Text = "CONTROL4 UPDATES";
+            //
+            // labelUpdatesDesc
+            //
+            this.labelUpdatesDesc.Anchor = ((System.Windows.Forms.AnchorStyles)((((System.Windows.Forms.AnchorStyles.Top | System.Windows.Forms.AnchorStyles.Bottom)
+            | System.Windows.Forms.AnchorStyles.Left)
+            | System.Windows.Forms.AnchorStyles.Right)));
+            this.labelUpdatesDesc.Location = new System.Drawing.Point(6, 1016);
+            this.labelUpdatesDesc.Margin = new System.Windows.Forms.Padding(6, 0, 6, 0);
+            this.labelUpdatesDesc.Name = "labelUpdatesDesc";
+            this.labelUpdatesDesc.Size = new System.Drawing.Size(670, 65);
+            this.labelUpdatesDesc.TabIndex = 14;
+            this.labelUpdatesDesc.Text = "The jailbreak blocks a Control4 server so Composer does not force you to register. Updates come from that same server, so they are blocked too. Allow updates to lift the block, then block again before restarting Composer.";
+            //
+            // buttonAllowUpdates
+            //
+            this.buttonAllowUpdates.Anchor = System.Windows.Forms.AnchorStyles.Right;
+            this.buttonAllowUpdates.Image = global::Garry.Control4.Jailbreak.Properties.Resources.updates_block;
+            this.buttonAllowUpdates.Location = new System.Drawing.Point(688, 1019);
+            this.buttonAllowUpdates.Margin = new System.Windows.Forms.Padding(6);
+            this.buttonAllowUpdates.Name = "buttonAllowUpdates";
+            this.buttonAllowUpdates.Size = new System.Drawing.Size(258, 65);
+            this.buttonAllowUpdates.TabIndex = 15;
+            this.buttonAllowUpdates.Text = " Allow Updates";
+            this.buttonAllowUpdates.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
+            this.buttonAllowUpdates.TextImageRelation = System.Windows.Forms.TextImageRelation.ImageBeforeText;
+            this.buttonAllowUpdates.UseVisualStyleBackColor = true;
+            this.buttonAllowUpdates.Click += new System.EventHandler(this.ToggleUpdatesBlock);
+            //
             // Jailbreak
             //
             this.AutoScaleDimensions = new System.Drawing.SizeF(12F, 25F);
@@ -425,6 +477,9 @@ namespace Garry.Control4.Jailbreak.UI
         private System.Windows.Forms.Label labelManagementPack;
         private System.Windows.Forms.Label labelManagementPackDesc;
         private System.Windows.Forms.Button buttonInstallMgmtPack;
+        private System.Windows.Forms.Label labelUpdates;
+        private System.Windows.Forms.Label labelUpdatesDesc;
+        private System.Windows.Forms.Button buttonAllowUpdates;
         private System.Windows.Forms.Panel panelCredentials;
         private System.Windows.Forms.Panel panelMac;
         private System.Windows.Forms.Panel panelJailbreakRow;
