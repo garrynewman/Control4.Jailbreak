@@ -1,0 +1,50 @@
+name: Release asset
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Setup NuGet
+        uses: nuget/setup-nuget@v2
+
+      - name: Restore packages
+        run: nuget restore Control4.Jailbreak.sln
+
+      - name: Build (Release)
+        run: msbuild Control4.Jailbreak.sln /p:Configuration=Release /m
+
+      - name: Package lean zip
+        shell: pwsh
+        run: |
+          $ver = (Select-String -Path Constants.cs -Pattern 'const string Version\s*=\s*"([^"]+)"').Matches[0].Groups[1].Value
+          $asset = "Control4.Jailbreak.$ver.zip"
+          Compress-Archive -Path bin/Release/C4Jailbreak.exe,bin/Release/C4Jailbreak.exe.config,bin/Release/Renci.SshNet.dll -DestinationPath $asset -Force
+          "ASSET=$asset" >> $env:GITHUB_ENV
+          Write-Host "Packaged $asset"
+
+      - name: Attach to release
+        if: github.event_name == 'release'
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release upload "${{ github.event.release.tag_name }}" "$env:ASSET" --clobber --repo "${{ github.repository }}"
+
+      - name: Upload build artifact (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@v4
+        with:
+          name: Control4.Jailbreak-zip
+          path: ${{ env.ASSET }}
