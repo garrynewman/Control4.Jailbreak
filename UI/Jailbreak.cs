@@ -128,6 +128,7 @@ namespace Garry.Control4.Jailbreak.UI
                 _ = CheckConnection();
             };
             SetupModeUi();
+            UpdateUpdatesButton();
             Load += Jailbreak_Load;
         }
 
@@ -2310,8 +2311,24 @@ f:close()
         private async void InstallManagementPack(object sender, EventArgs e)
         {
             var log = new LogWindow(_mainWindow, "Install Management Pack");
+
+            // services.control4.com is normally blocked by the jailbreak because it hosts the
+            // licensing reauthorization that pops the app-closing "Register Composer" modal. It also
+            // hosts the Updates2x SOAP service this installer needs, so lift the block for the
+            // duration of the install and restore it in the finally below. Only restore it if it was
+            // actually blocked at the start, so a non-jailbroken machine is not left with a new block.
+            var servicesWasBlocked = File.Exists(Constants.WindowsHostsFile) &&
+                File.ReadAllLines(Constants.WindowsHostsFile)
+                    .Any(l => l.Trim() == Constants.BlockCloudServicesHostsEntry.Trim());
+
             try
             {
+                if (servicesWasBlocked)
+                {
+                    log.WriteNormal("Temporarily unblocking services.control4.com for the download...\n");
+                    RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockCloudServicesHostsEntry);
+                    FlushDns(log);
+                }
                 if (_directorVersion == null)
                 {
                     log.WriteError("Controller OS version not detected.\n");
@@ -2426,6 +2443,69 @@ f:close()
             catch (Exception ex)
             {
                 log.WriteError($"Error: {ex.Message}\n");
+            }
+            finally
+            {
+                if (servicesWasBlocked)
+                {
+                    log.WriteNormal("Restoring services.control4.com block...\n");
+                    AddLineToFile(log, Constants.WindowsHostsFile, Constants.BlockCloudServicesHostsEntry);
+                    FlushDns(log);
+                }
+            }
+        }
+
+        private void ToggleUpdatesBlock(object sender, EventArgs e)
+        {
+            var log = new LogWindow(_mainWindow, "Control4 Updates");
+            try
+            {
+                if (IsServicesBlocked())
+                {
+                    log.WriteNormal("Allowing Control4 updates (unblocking services.control4.com)...\n");
+                    RemoveLineFromFile(log, Constants.WindowsHostsFile, Constants.BlockCloudServicesHostsEntry);
+                    FlushDns(log);
+                    log.WriteSuccess("Updates allowed. Use the Update Manager in Composer, then click \"Block Updates\" before you restart Composer; the jailbreak needs the block to run.\n");
+                }
+                else
+                {
+                    log.WriteNormal("Blocking Control4 updates (restoring the block)...\n");
+                    AddLineToFile(log, Constants.WindowsHostsFile, Constants.BlockCloudServicesHostsEntry);
+                    FlushDns(log);
+                    log.WriteSuccess("Updates blocked. The jailbreak will run normally again.\n");
+                }
+                UpdateUpdatesButton();
+            }
+            catch (Exception ex)
+            {
+                log.WriteError($"Error: {ex.Message}\n");
+            }
+        }
+
+        private static bool IsServicesBlocked()
+        {
+            return File.Exists(Constants.WindowsHostsFile) &&
+                File.ReadAllLines(Constants.WindowsHostsFile)
+                    .Any(l => l.Trim() == Constants.BlockCloudServicesHostsEntry.Trim());
+        }
+
+        private void UpdateUpdatesButton()
+        {
+            try
+            {
+                if (IsServicesBlocked())
+                {
+                    buttonAllowUpdates.Text = " Allow Updates";
+                    buttonAllowUpdates.Image = Properties.Resources.updates_block;
+                }
+                else
+                {
+                    buttonAllowUpdates.Text = " Block Updates";
+                    buttonAllowUpdates.Image = Properties.Resources.updates_allow;
+                }
+            }
+            catch
+            {
             }
         }
 
@@ -2972,6 +3052,28 @@ f:close()
             {
                 File.WriteAllText(file, line.TrimEnd() + Environment.NewLine);
                 log.WriteSuccess("done\n");
+            }
+        }
+
+        private static void FlushDns(LogWindow log)
+        {
+            try
+            {
+                var psi = new ProcessStartInfo("ipconfig", "/flushdns")
+                {
+                    CreateNoWindow = true,
+                    UseShellExecute = false,
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true
+                };
+                using (var p = Process.Start(psi))
+                {
+                    p?.WaitForExit(5000);
+                }
+            }
+            catch (Exception ex)
+            {
+                log.WriteTrace($"DNS flush skipped: {ex.Message}\n");
             }
         }
 

@@ -89,6 +89,20 @@ namespace Garry.Control4.Jailbreak.Properties {
                 return ((System.Drawing.Bitmap)(obj));
             }
         }
+
+        internal static System.Drawing.Bitmap updates_allow {
+            get {
+                object obj = ResourceManager.GetObject("updates_allow", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+
+        internal static System.Drawing.Bitmap updates_block {
+            get {
+                object obj = ResourceManager.GetObject("updates_block", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
         
         /// <summary>
         ///   Looks up a localized resource of type System.Drawing.Bitmap.

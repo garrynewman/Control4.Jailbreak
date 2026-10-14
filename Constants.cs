@@ -2,7 +2,7 @@ namespace Garry.Control4.Jailbreak
 {
     public static class Constants
     {
-        public const string Version = "9.1";
+        public const string Version = "9.2";
 
         /// <summary>
         /// The cert for composer needs to be named cacert-*.pem
